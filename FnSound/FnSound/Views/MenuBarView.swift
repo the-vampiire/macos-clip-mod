@@ -7,6 +7,7 @@ struct MenuBarView: View {
     @EnvironmentObject var keyMonitor: KeyMonitor
     @EnvironmentObject var soundPlayer: SoundPlayer
     @EnvironmentObject var settings: SettingsManager
+    @StateObject private var brandManager = BrandManager.shared
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
@@ -43,7 +44,7 @@ struct MenuBarView: View {
                         .fontWeight(.medium)
                 }
 
-                Text("FnSound needs Input Monitoring permission to detect the fn key.")
+                Text("\(brandManager.appDisplayName) needs Input Monitoring permission to detect the fn key.")
                     .font(.caption)
                     .foregroundColor(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
@@ -88,23 +89,42 @@ struct MenuBarView: View {
     @ViewBuilder
     private var soundSection: some View {
         // Current sound display
-        if let soundName = soundPlayer.currentSoundName {
-            HStack {
-                Image(systemName: "music.note")
-                    .foregroundColor(.secondary)
+        HStack {
+            Image(systemName: "music.note")
+                .foregroundColor(.secondary)
+            if let soundName = soundPlayer.currentSoundName {
                 Text(soundName)
                     .font(.caption)
                     .lineLimit(1)
                     .truncationMode(.middle)
-            }
-        } else {
-            HStack {
-                Image(systemName: "music.note")
-                    .foregroundColor(.secondary)
+            } else {
                 Text("No sound selected")
                     .font(.caption)
                     .foregroundColor(.secondary)
             }
+        }
+
+        // Bundled sounds (if any)
+        if !brandManager.bundledSounds.isEmpty {
+            ForEach(brandManager.bundledSounds) { sound in
+                Button(action: {
+                    selectBundledSound(sound)
+                }) {
+                    HStack {
+                        if soundPlayer.currentSoundURL == sound.url {
+                            Image(systemName: "checkmark")
+                                .frame(width: 16)
+                        } else {
+                            Color.clear
+                                .frame(width: 16)
+                        }
+                        Text(sound.displayName)
+                    }
+                }
+                .buttonStyle(.plain)
+            }
+
+            Divider()
         }
 
         // Sound control buttons
@@ -139,7 +159,7 @@ struct MenuBarView: View {
         }
         .keyboardShortcut(",", modifiers: .command)
 
-        Button("Quit FnSound") {
+        Button("Quit \(brandManager.appDisplayName)") {
             NSApplication.shared.terminate(nil)
         }
         .keyboardShortcut("q", modifiers: .command)
@@ -151,12 +171,23 @@ struct MenuBarView: View {
         // Check permission status
         keyMonitor.hasPermission = keyMonitor.checkPermission()
 
-        // Load saved sound file
+        // Load saved sound file, or default bundled sound
+        var soundLoaded = false
         if let savedURL = settings.loadSoundURL() {
             do {
                 try soundPlayer.loadSound(from: savedURL)
+                soundLoaded = true
             } catch {
                 print("Failed to load saved sound: \(error)")
+            }
+        }
+
+        // If no saved sound, try to load default bundled sound
+        if !soundLoaded, let defaultSound = brandManager.defaultSound {
+            do {
+                try soundPlayer.loadSound(from: defaultSound.url)
+            } catch {
+                print("Failed to load default bundled sound: \(error)")
             }
         }
 
@@ -165,8 +196,9 @@ struct MenuBarView: View {
             soundPlayer?.play()
         }
 
-        // Sync trigger delay from settings
+        // Sync settings to key monitor
         keyMonitor.triggerDelay = settings.triggerDelay
+        keyMonitor.blockSystemBehavior = settings.blockSystemBehavior
 
         // Start monitoring if enabled and permitted
         if settings.isEnabled && keyMonitor.hasPermission {
@@ -206,6 +238,16 @@ struct MenuBarView: View {
             } catch {
                 print("Failed to load sound: \(error)")
             }
+        }
+    }
+
+    private func selectBundledSound(_ sound: BundledSound) {
+        do {
+            try soundPlayer.loadSound(from: sound.url)
+            // Clear the saved bookmark since we're using a bundled sound
+            settings.clearSoundBookmark()
+        } catch {
+            print("Failed to load bundled sound: \(error)")
         }
     }
 }

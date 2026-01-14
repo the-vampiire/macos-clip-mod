@@ -27,6 +27,10 @@ final class KeyMonitor: ObservableObject {
     /// If another key is pressed within this time, the trigger is cancelled
     var triggerDelay: TimeInterval = 0.4
 
+    /// When true, blocks the system's default fn key behavior (e.g., input source switcher)
+    /// Changing this requires restarting the monitor
+    var blockSystemBehavior: Bool = true
+
     // MARK: - Permission Handling
 
     /// Check if the app has Input Monitoring permission
@@ -63,10 +67,14 @@ final class KeyMonitor: ObservableObject {
         let userInfo = Unmanaged.passRetained(self).toOpaque()
 
         // Create the event tap
+        // Use .defaultTap when blocking system behavior (allows us to consume events)
+        // Use .listenOnly when not blocking (just observe events)
+        let tapOptions: CGEventTapOptions = blockSystemBehavior ? .defaultTap : .listenOnly
+
         guard let tap = CGEvent.tapCreate(
             tap: .cgSessionEventTap,
             place: .headInsertEventTap,
-            options: .listenOnly,
+            options: tapOptions,
             eventsOfInterest: eventMask,
             callback: KeyMonitor.eventCallback,
             userInfo: userInfo
@@ -135,6 +143,20 @@ final class KeyMonitor: ObservableObject {
         let eventType = type
         let flags = event.flags
 
+        // Check if this is an fn key event that we should block
+        var shouldBlockEvent = false
+        if monitor.blockSystemBehavior && eventType == .flagsChanged {
+            // Check if fn key state changed by looking at the flags
+            // We block flagsChanged events that involve the fn key
+            let fnIsInFlags = flags.contains(.maskSecondaryFn)
+            let fnWasPressed = monitor.fnPressedTime != nil
+
+            // Block if fn is being pressed or released
+            if fnIsInFlags || fnWasPressed {
+                shouldBlockEvent = true
+            }
+        }
+
         DispatchQueue.main.async {
             if eventType == .flagsChanged {
                 monitor.handleFlagsChanged(flags)
@@ -143,6 +165,10 @@ final class KeyMonitor: ObservableObject {
             }
         }
 
+        // Return nil to consume/block the event, or the event to let it pass through
+        if shouldBlockEvent {
+            return nil
+        }
         return Unmanaged.passUnretained(event)
     }
 

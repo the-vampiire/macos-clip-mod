@@ -13,6 +13,7 @@ final class SettingsManager: ObservableObject {
         static let triggerDelay = "triggerDelay"
         static let isEnabled = "isEnabled"
         static let launchAtLogin = "launchAtLogin"
+        static let blockSystemBehavior = "blockSystemBehavior"
     }
 
     // MARK: - Published Properties
@@ -38,6 +39,14 @@ final class SettingsManager: ObservableObject {
         }
     }
 
+    /// Whether to block the system's default fn key behavior (e.g., input source switcher)
+    /// When true, pressing fn alone will only trigger the sound and not show system UI
+    @Published var blockSystemBehavior: Bool {
+        didSet {
+            defaults.set(blockSystemBehavior, forKey: Keys.blockSystemBehavior)
+        }
+    }
+
     // MARK: - Initialization
 
     init() {
@@ -53,6 +62,13 @@ final class SettingsManager: ObservableObject {
         }
 
         self.launchAtLogin = defaults.bool(forKey: Keys.launchAtLogin)
+
+        // Default to blocking system behavior if not set (first launch)
+        if defaults.object(forKey: Keys.blockSystemBehavior) == nil {
+            self.blockSystemBehavior = true
+        } else {
+            self.blockSystemBehavior = defaults.bool(forKey: Keys.blockSystemBehavior)
+        }
     }
 
     // MARK: - Sound File Bookmark

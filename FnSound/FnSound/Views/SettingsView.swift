@@ -6,6 +6,7 @@ struct SettingsView: View {
     @EnvironmentObject var keyMonitor: KeyMonitor
     @EnvironmentObject var soundPlayer: SoundPlayer
     @EnvironmentObject var settings: SettingsManager
+    @StateObject private var brandManager = BrandManager.shared
 
     var body: some View {
         Form {
@@ -14,6 +15,24 @@ struct SettingsView: View {
                 triggerDelayControl
 
                 Text("Shorter delay = faster response, but may trigger accidentally when using fn+key combos. Longer delay = more reliable modifier detection.")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+
+                Divider()
+
+                Toggle("Block system fn key behavior", isOn: $settings.blockSystemBehavior)
+                    .onChange(of: settings.blockSystemBehavior) { _, newValue in
+                        // Need to restart monitoring to apply the change
+                        if keyMonitor.isMonitoring {
+                            keyMonitor.stop()
+                            keyMonitor.blockSystemBehavior = newValue
+                            keyMonitor.start()
+                        } else {
+                            keyMonitor.blockSystemBehavior = newValue
+                        }
+                    }
+
+                Text("When enabled, pressing fn alone won't show the input source switcher or other system UI. Requires restart of monitoring to take effect.")
                     .font(.caption)
                     .foregroundColor(.secondary)
             }
@@ -98,7 +117,7 @@ struct SettingsView: View {
         }
 
         if !keyMonitor.hasPermission {
-            Text("FnSound needs Input Monitoring permission to detect when you press the fn key. Click 'Grant Access' to open System Settings.")
+            Text("\(brandManager.appDisplayName) needs Input Monitoring permission to detect when you press the fn key. Click 'Grant Access' to open System Settings.")
                 .font(.caption)
                 .foregroundColor(.secondary)
         }
@@ -147,9 +166,9 @@ struct SettingsView: View {
     private var aboutInfo: some View {
         HStack {
             VStack(alignment: .leading, spacing: 4) {
-                Text("FnSound")
+                Text(brandManager.appDisplayName)
                     .fontWeight(.semibold)
-                Text("Version 1.0.0")
+                Text("Version \(brandManager.brandConfig?.version ?? "1.0.0")")
                     .font(.caption)
                     .foregroundColor(.secondary)
             }
