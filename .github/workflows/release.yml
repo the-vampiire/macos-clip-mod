@@ -1,0 +1,170 @@
+name: Build and Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version (e.g., 1.0.0)'
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    runs-on: macos-14
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set version
+        id: version
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            VERSION="${{ github.event.inputs.version }}"
+          else
+            VERSION="${GITHUB_REF#refs/tags/v}"
+          fi
+          echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
+          echo "Building version $VERSION"
+
+      - name: Install certificate
+        env:
+          CERTIFICATE_P12: ${{ secrets.CERTIFICATE_P12 }}
+          CERTIFICATE_PASSWORD: ${{ secrets.CERTIFICATE_PASSWORD }}
+        run: |
+          KEYCHAIN_PATH=$RUNNER_TEMP/app-signing.keychain-db
+          KEYCHAIN_PASSWORD=$(openssl rand -base64 32)
+
+          security create-keychain -p "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
+          security set-keychain-settings -lut 21600 $KEYCHAIN_PATH
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
+
+          echo "$CERTIFICATE_P12" | base64 --decode > $RUNNER_TEMP/certificate.p12
+          security import $RUNNER_TEMP/certificate.p12 -P "$CERTIFICATE_PASSWORD" -A -t cert -f pkcs12 -k $KEYCHAIN_PATH
+          security set-key-partition-list -S apple-tool:,apple: -k "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
+          security list-keychain -d user -s $KEYCHAIN_PATH
+
+          echo "KEYCHAIN_PATH=$KEYCHAIN_PATH" >> $GITHUB_ENV
+
+      - name: Install create-dmg
+        run: brew install create-dmg
+
+      - name: Update version in brand.json
+        run: |
+          VERSION=${{ steps.version.outputs.VERSION }}
+          cd Branding/LIFN
+          python3 << 'PYEOF'
+          import json
+          with open('brand.json', 'r') as f:
+              data = json.load(f)
+          data['version'] = '${{ steps.version.outputs.VERSION }}'
+          with open('brand.json', 'w') as f:
+              json.dump(data, f, indent=2)
+          PYEOF
+
+      - name: Build branded app
+        run: ./Scripts/build-brand.sh LIFN Release
+
+      - name: Create and notarize DMG
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          xcrun notarytool store-credentials "apple-notary" \
+            --apple-id "$APPLE_ID" \
+            --password "$APPLE_APP_PASSWORD" \
+            --team-id "$APPLE_TEAM_ID"
+
+          ./Scripts/create-dmg.sh build/LIFN/LIFN.app --notarize
+
+          mv dist/LIFN.dmg dist/LIFN-${{ steps.version.outputs.VERSION }}.dmg
+
+      - name: Sign with Sparkle
+        env:
+          SPARKLE_PRIVATE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY }}
+        run: |
+          curl -L -o sparkle.tar.xz https://github.com/sparkle-project/Sparkle/releases/download/2.6.4/Sparkle-2.6.4.tar.xz
+          mkdir -p sparkle-tools
+          tar -xf sparkle.tar.xz -C sparkle-tools
+
+          echo "$SPARKLE_PRIVATE_KEY" > $RUNNER_TEMP/sparkle_private_key
+          SIGNATURE=$(./sparkle-tools/bin/sign_update dist/LIFN-${{ steps.version.outputs.VERSION }}.dmg -f $RUNNER_TEMP/sparkle_private_key)
+
+          echo "SPARKLE_SIGNATURE=$SIGNATURE" >> $GITHUB_ENV
+
+          FILE_SIZE=$(stat -f%z dist/LIFN-${{ steps.version.outputs.VERSION }}.dmg)
+          echo "FILE_SIZE=$FILE_SIZE" >> $GITHUB_ENV
+
+      - name: Generate appcast
+        run: |
+          VERSION=${{ steps.version.outputs.VERSION }}
+          DATE=$(date -R)
+          DMG_URL="https://github.com/${{ github.repository }}/releases/download/v${VERSION}/LIFN-${VERSION}.dmg"
+          SIG_ONLY=$(echo "$SPARKLE_SIGNATURE" | sed 's/sparkle:edSignature="\([^"]*\)".*/\1/')
+
+          cat > appcast.xml << APPCAST_EOF
+          <?xml version="1.0" encoding="utf-8"?>
+          <rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle" xmlns:dc="http://purl.org/dc/elements/1.1/">
+            <channel>
+              <title>LIFN Updates</title>
+              <link>https://the-vampiire.github.io/macos-clip-mod/appcast.xml</link>
+              <description>Most recent updates to LIFN</description>
+              <language>en</language>
+              <item>
+                <title>Version ${VERSION}</title>
+                <pubDate>${DATE}</pubDate>
+                <enclosure
+                  url="${DMG_URL}"
+                  sparkle:version="${{ github.run_number }}"
+                  sparkle:shortVersionString="${VERSION}"
+                  length="${FILE_SIZE}"
+                  type="application/octet-stream"
+                  sparkle:edSignature="${SIG_ONLY}"
+                />
+                <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+              </item>
+            </channel>
+          </rss>
+          APPCAST_EOF
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          name: LIFN v${{ steps.version.outputs.VERSION }}
+          tag_name: v${{ steps.version.outputs.VERSION }}
+          files: dist/LIFN-${{ steps.version.outputs.VERSION }}.dmg
+          body: |
+            ## LIFN v${{ steps.version.outputs.VERSION }}
+
+            Download and install to get started.
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Deploy appcast
+        run: |
+          cp appcast.xml /tmp/appcast.xml
+
+          git config user.name "GitHub Actions"
+          git config user.email "actions@github.com"
+
+          git stash --include-untracked || true
+
+          git fetch origin gh-pages
+          git checkout gh-pages
+
+          cp /tmp/appcast.xml appcast.xml
+
+          git add appcast.xml
+          git commit -m "Update appcast for v${{ steps.version.outputs.VERSION }}" || echo "No changes"
+          git push origin gh-pages
+
+      - name: Cleanup
+        if: always()
+        run: security delete-keychain $RUNNER_TEMP/app-signing.keychain-db || true
