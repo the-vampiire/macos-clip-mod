@@ -3,7 +3,7 @@
   "appName": "LIFN",
   "bundleIdentifier": "com.lifn.fnsound",
   "displayName": "LIFN",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "sounds": {
     "short": {
       "filename": "LIFN.short.mp3",

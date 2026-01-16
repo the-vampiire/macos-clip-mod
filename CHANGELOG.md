@@ -1,5 +1,8 @@
 # Changelog
 
+## [1.0.4] - 2026-01-16
+- Add changelog to GitHub releases and Sparkle update dialog
+
 ## [1.0.3] - 2026-01-16
 - Fix fn key not working until menu bar icon clicked after app update/restart
 
