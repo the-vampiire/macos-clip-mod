@@ -6,6 +6,22 @@
     <description>Most recent updates to LIFN</description>
     <language>en</language>
     <item>
+      <title>Version 1.0.4</title>
+      <pubDate>Fri, 16 Jan 2026 09:06:34 +0000</pubDate>
+      <description><![CDATA[<ul>
+  <li>Add changelog to GitHub releases and Sparkle update dialog</li>
+</ul>]]></description>
+      <enclosure
+        url="https://github.com/the-vampiire/macos-clip-mod/releases/download/v1.0.4/LIFN-1.0.4.dmg"
+        sparkle:version="23"
+        sparkle:shortVersionString="1.0.4"
+        length="5467006"
+        type="application/octet-stream"
+        sparkle:edSignature="uJUC5/XEUmkwmuLQlHg70EIzFHDyBW53P2u847acjhw+aV7VJPtP41WJJ7wYyNlJqh79tTVG9xIEM8OvUVl5BA=="
+      />
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+    </item>
+    <item>
       <title>Version 1.0.3</title>
       <pubDate>Fri, 16 Jan 2026 08:56:19 +0000</pubDate>
       <enclosure
