@@ -209,13 +209,37 @@ struct MenuBarView: View {
             }
         }
 
-        // Connect the trigger callback
-        keyMonitor.onTrigger = { [weak soundPlayer] in
+        // Setup ToastyManager
+        let toastyManager = ToastyManager.shared
+        toastyManager.toastyEnabled = settings.toastyEnabled
+        toastyManager.toastyScale = settings.toastyScale
+        toastyManager.toastyOffsetX = settings.toastyOffsetX
+        toastyManager.toastyOffsetY = settings.toastyOffsetY
+        toastyManager.onTrigger = { [weak soundPlayer] in
             soundPlayer?.play()
+            return soundPlayer?.duration ?? 1.5
+        }
+
+        // Connect fn key trigger to ToastyManager (shows popup + plays sound)
+        keyMonitor.onTrigger = { [weak soundPlayer] in
+            if settings.toastyEnabled {
+                toastyManager.trigger()
+            } else {
+                soundPlayer?.play()
+            }
         }
 
         // Sync settings to key monitor
         keyMonitor.triggerDelay = settings.triggerDelay
+
+        // Start random timer if enabled
+        if settings.randomTimerEnabled {
+            toastyManager.updateTimerSettings(
+                minInterval: settings.randomTimerMinInterval,
+                maxInterval: settings.randomTimerMaxInterval
+            )
+            toastyManager.startRandomTimer()
+        }
 
         // Start monitoring if enabled and permitted
         if settings.isEnabled && keyMonitor.hasPermission {

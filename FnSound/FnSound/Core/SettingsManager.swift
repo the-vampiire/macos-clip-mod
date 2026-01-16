@@ -31,6 +31,13 @@ final class SettingsManager: ObservableObject {
         static let isEnabled = "isEnabled"
         static let launchAtLogin = "launchAtLogin"
         static let menuBarIconStyle = "menuBarIconStyle"
+        static let randomTimerEnabled = "randomTimerEnabled"
+        static let randomTimerMinInterval = "randomTimerMinInterval"
+        static let randomTimerMaxInterval = "randomTimerMaxInterval"
+        static let toastyEnabled = "toastyEnabled"
+        static let toastyScale = "toastyScale"
+        static let toastyOffsetX = "toastyOffsetX"
+        static let toastyOffsetY = "toastyOffsetY"
     }
 
     // MARK: - Published Properties
@@ -63,6 +70,55 @@ final class SettingsManager: ObservableObject {
         }
     }
 
+    /// Whether random timer is enabled
+    @Published var randomTimerEnabled: Bool {
+        didSet {
+            defaults.set(randomTimerEnabled, forKey: Keys.randomTimerEnabled)
+        }
+    }
+
+    /// Minimum interval for random timer (in seconds)
+    @Published var randomTimerMinInterval: TimeInterval {
+        didSet {
+            defaults.set(randomTimerMinInterval, forKey: Keys.randomTimerMinInterval)
+        }
+    }
+
+    /// Maximum interval for random timer (in seconds)
+    @Published var randomTimerMaxInterval: TimeInterval {
+        didSet {
+            defaults.set(randomTimerMaxInterval, forKey: Keys.randomTimerMaxInterval)
+        }
+    }
+
+    /// Whether to show the Toasty popup when sound plays
+    @Published var toastyEnabled: Bool {
+        didSet {
+            defaults.set(toastyEnabled, forKey: Keys.toastyEnabled)
+        }
+    }
+
+    /// Scale of the Toasty popup (1.0 = 300px, range 0.5 to 3.0)
+    @Published var toastyScale: Double {
+        didSet {
+            defaults.set(toastyScale, forKey: Keys.toastyScale)
+        }
+    }
+
+    /// Horizontal offset from right edge (positive = further left from edge)
+    @Published var toastyOffsetX: Double {
+        didSet {
+            defaults.set(toastyOffsetX, forKey: Keys.toastyOffsetX)
+        }
+    }
+
+    /// Vertical offset from bottom edge (positive = higher up from edge)
+    @Published var toastyOffsetY: Double {
+        didSet {
+            defaults.set(toastyOffsetY, forKey: Keys.toastyOffsetY)
+        }
+    }
+
     // MARK: - Initialization
 
     init() {
@@ -85,6 +141,42 @@ final class SettingsManager: ObservableObject {
             self.menuBarIconStyle = style
         } else {
             self.menuBarIconStyle = .smallText
+        }
+
+        // Random timer settings (default: disabled, 30-120 seconds)
+        self.randomTimerEnabled = defaults.bool(forKey: Keys.randomTimerEnabled)
+
+        let savedMin = defaults.double(forKey: Keys.randomTimerMinInterval)
+        self.randomTimerMinInterval = savedMin > 0 ? savedMin : 30.0
+
+        let savedMax = defaults.double(forKey: Keys.randomTimerMaxInterval)
+        self.randomTimerMaxInterval = savedMax > 0 ? savedMax : 120.0
+
+        // Toasty popup (default: enabled)
+        if defaults.object(forKey: Keys.toastyEnabled) == nil {
+            self.toastyEnabled = true
+        } else {
+            self.toastyEnabled = defaults.bool(forKey: Keys.toastyEnabled)
+        }
+
+        // Toasty scale (default: 2.0 = 600px, good size for 16" MBP)
+        if defaults.object(forKey: Keys.toastyScale) == nil {
+            self.toastyScale = 2.0
+        } else {
+            let savedScale = defaults.double(forKey: Keys.toastyScale)
+            self.toastyScale = savedScale > 0 ? savedScale : 2.0
+        }
+
+        // Toasty offsets (default: 0, -50 - slightly below corner for proper positioning)
+        if defaults.object(forKey: Keys.toastyOffsetX) == nil {
+            self.toastyOffsetX = 0.0
+        } else {
+            self.toastyOffsetX = defaults.double(forKey: Keys.toastyOffsetX)
+        }
+        if defaults.object(forKey: Keys.toastyOffsetY) == nil {
+            self.toastyOffsetY = -50.0
+        } else {
+            self.toastyOffsetY = defaults.double(forKey: Keys.toastyOffsetY)
         }
     }
 

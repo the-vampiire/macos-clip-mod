@@ -37,6 +37,138 @@ struct SettingsView: View {
                 }
             }
 
+            // Random Timer
+            Section("Random Timer") {
+                Toggle("Enable random triggers", isOn: $settings.randomTimerEnabled)
+                    .onChange(of: settings.randomTimerEnabled) { _, enabled in
+                        if enabled {
+                            ToastyManager.shared.updateTimerSettings(
+                                minInterval: settings.randomTimerMinInterval,
+                                maxInterval: settings.randomTimerMaxInterval
+                            )
+                            ToastyManager.shared.startRandomTimer()
+                        } else {
+                            ToastyManager.shared.stopRandomTimer()
+                        }
+                    }
+
+                if settings.randomTimerEnabled {
+                    VStack(alignment: .leading, spacing: 8) {
+                        HStack {
+                            Text("Min interval:")
+                            Spacer()
+                            Text("\(Int(settings.randomTimerMinInterval))s")
+                                .monospacedDigit()
+                                .foregroundColor(.secondary)
+                        }
+                        Slider(value: $settings.randomTimerMinInterval, in: 10...300, step: 10)
+                            .onChange(of: settings.randomTimerMinInterval) { _, newValue in
+                                // Ensure max is at least min
+                                if settings.randomTimerMaxInterval < newValue {
+                                    settings.randomTimerMaxInterval = newValue
+                                }
+                                ToastyManager.shared.updateTimerSettings(
+                                    minInterval: newValue,
+                                    maxInterval: settings.randomTimerMaxInterval
+                                )
+                            }
+
+                        HStack {
+                            Text("Max interval:")
+                            Spacer()
+                            Text("\(Int(settings.randomTimerMaxInterval))s")
+                                .monospacedDigit()
+                                .foregroundColor(.secondary)
+                        }
+                        Slider(value: $settings.randomTimerMaxInterval, in: 10...600, step: 10)
+                            .onChange(of: settings.randomTimerMaxInterval) { _, newValue in
+                                // Ensure max is at least min
+                                let actualMax = max(newValue, settings.randomTimerMinInterval)
+                                if actualMax != newValue {
+                                    settings.randomTimerMaxInterval = actualMax
+                                }
+                                ToastyManager.shared.updateTimerSettings(
+                                    minInterval: settings.randomTimerMinInterval,
+                                    maxInterval: actualMax
+                                )
+                            }
+                    }
+                }
+
+                Text("When enabled, the sound will play randomly between the min and max intervals. For the people.")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+
+            // Toasty Popup
+            Section("Toasty!") {
+                Toggle("Show popup when sound plays", isOn: $settings.toastyEnabled)
+                    .onChange(of: settings.toastyEnabled) { _, enabled in
+                        ToastyManager.shared.toastyEnabled = enabled
+                    }
+
+                if settings.toastyEnabled {
+                    VStack(alignment: .leading, spacing: 12) {
+                        // Scale slider
+                        VStack(alignment: .leading, spacing: 4) {
+                            HStack {
+                                Text("Size:")
+                                Spacer()
+                                Text("\(Int(settings.toastyScale * 100))% (\(Int(300 * settings.toastyScale))px)")
+                                    .monospacedDigit()
+                                    .foregroundColor(.secondary)
+                            }
+                            Slider(value: $settings.toastyScale, in: 0.5...3.0, step: 0.25)
+                                .onChange(of: settings.toastyScale) { _, newValue in
+                                    ToastyManager.shared.toastyScale = newValue
+                                }
+                        }
+
+                        // X offset slider
+                        VStack(alignment: .leading, spacing: 4) {
+                            HStack {
+                                Text("X offset (from right):")
+                                Spacer()
+                                Text("\(Int(settings.toastyOffsetX))px")
+                                    .monospacedDigit()
+                                    .foregroundColor(.secondary)
+                            }
+                            Slider(value: $settings.toastyOffsetX, in: -200...500, step: 10)
+                                .onChange(of: settings.toastyOffsetX) { _, newValue in
+                                    ToastyManager.shared.toastyOffsetX = newValue
+                                }
+                        }
+
+                        // Y offset slider
+                        VStack(alignment: .leading, spacing: 4) {
+                            HStack {
+                                Text("Y offset (from bottom):")
+                                Spacer()
+                                Text("\(Int(settings.toastyOffsetY))px")
+                                    .monospacedDigit()
+                                    .foregroundColor(.secondary)
+                            }
+                            Slider(value: $settings.toastyOffsetY, in: -200...500, step: 10)
+                                .onChange(of: settings.toastyOffsetY) { _, newValue in
+                                    ToastyManager.shared.toastyOffsetY = newValue
+                                }
+                        }
+
+                        Text("Adjust size and position. X: positive = further left. Y: positive = higher up.")
+                            .font(.caption2)
+                            .foregroundColor(.secondary)
+                    }
+                }
+
+                Text("When enabled, a small image pops up from the corner of your screen when the sound plays. Inspired by Dan Forden's iconic MK2 easter egg.")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+
+                Button("Test Toasty") {
+                    ToastyManager.shared.showToasty()
+                }
+            }
+
             // Permissions
             Section("Permissions") {
                 permissionStatus
@@ -53,7 +185,7 @@ struct SettingsView: View {
             }
         }
         .formStyle(.grouped)
-        .frame(width: 450, height: 400)
+        .frame(width: 450, height: 750)
     }
 
     // MARK: - Trigger Delay Control
@@ -176,7 +308,7 @@ struct SettingsView: View {
             Spacer()
         }
 
-        Text("A simple menu bar app that plays a sound when you press the fn key alone.")
+        Text("A life-changing menu bar app that reminds you to LIFN.")
             .font(.caption)
             .foregroundColor(.secondary)
     }
