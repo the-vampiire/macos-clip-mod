@@ -8,6 +8,7 @@ struct MenuBarView: View {
     @EnvironmentObject var soundPlayer: SoundPlayer
     @EnvironmentObject var settings: SettingsManager
     @StateObject private var brandManager = BrandManager.shared
+    @Environment(\.openSettings) private var openSettings
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
@@ -154,8 +155,25 @@ struct MenuBarView: View {
 
     @ViewBuilder
     private var footerSection: some View {
-        SettingsLink {
-            Text("Settings...")
+        // Icon style picker
+        Menu("Menu Bar Icon") {
+            ForEach(MenuBarIconStyle.allCases, id: \.self) { style in
+                Button(action: {
+                    settings.menuBarIconStyle = style
+                }) {
+                    HStack {
+                        if settings.menuBarIconStyle == style {
+                            Image(systemName: "checkmark")
+                        }
+                        Text(style.displayName)
+                    }
+                }
+            }
+        }
+
+        Button("Settings...") {
+            NSApp.activate(ignoringOtherApps: true)
+            openSettings()
         }
         .keyboardShortcut(",", modifiers: .command)
 
@@ -198,7 +216,6 @@ struct MenuBarView: View {
 
         // Sync settings to key monitor
         keyMonitor.triggerDelay = settings.triggerDelay
-        keyMonitor.blockSystemBehavior = settings.blockSystemBehavior
 
         // Start monitoring if enabled and permitted
         if settings.isEnabled && keyMonitor.hasPermission {

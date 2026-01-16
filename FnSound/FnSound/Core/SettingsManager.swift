@@ -1,5 +1,22 @@
 import Foundation
 
+/// Menu bar icon style options
+enum MenuBarIconStyle: String, CaseIterable {
+    case smallText = "smallText"      // Small "LIFN" text
+    case largeText = "largeText"      // Large "LIFN" text
+    case letter = "letter"            // Single "L" letter
+    case soundIcon = "soundIcon"      // SF Symbol speaker icon
+
+    var displayName: String {
+        switch self {
+        case .smallText: return "LIFN (Small)"
+        case .largeText: return "LIFN (Large)"
+        case .letter: return "L Icon"
+        case .soundIcon: return "Sound Icon"
+        }
+    }
+}
+
 /// SettingsManager handles persistence of user preferences using UserDefaults.
 /// It also manages security-scoped bookmarks for accessing user-selected sound files
 /// across app launches in a sandboxed environment.
@@ -13,7 +30,7 @@ final class SettingsManager: ObservableObject {
         static let triggerDelay = "triggerDelay"
         static let isEnabled = "isEnabled"
         static let launchAtLogin = "launchAtLogin"
-        static let blockSystemBehavior = "blockSystemBehavior"
+        static let menuBarIconStyle = "menuBarIconStyle"
     }
 
     // MARK: - Published Properties
@@ -39,11 +56,10 @@ final class SettingsManager: ObservableObject {
         }
     }
 
-    /// Whether to block the system's default fn key behavior (e.g., input source switcher)
-    /// When true, pressing fn alone will only trigger the sound and not show system UI
-    @Published var blockSystemBehavior: Bool {
+    /// Menu bar icon style
+    @Published var menuBarIconStyle: MenuBarIconStyle {
         didSet {
-            defaults.set(blockSystemBehavior, forKey: Keys.blockSystemBehavior)
+            defaults.set(menuBarIconStyle.rawValue, forKey: Keys.menuBarIconStyle)
         }
     }
 
@@ -63,11 +79,12 @@ final class SettingsManager: ObservableObject {
 
         self.launchAtLogin = defaults.bool(forKey: Keys.launchAtLogin)
 
-        // Default to blocking system behavior if not set (first launch)
-        if defaults.object(forKey: Keys.blockSystemBehavior) == nil {
-            self.blockSystemBehavior = true
+        // Load menu bar icon style (default to small text)
+        if let savedStyle = defaults.string(forKey: Keys.menuBarIconStyle),
+           let style = MenuBarIconStyle(rawValue: savedStyle) {
+            self.menuBarIconStyle = style
         } else {
-            self.blockSystemBehavior = defaults.bool(forKey: Keys.blockSystemBehavior)
+            self.menuBarIconStyle = .smallText
         }
     }
 

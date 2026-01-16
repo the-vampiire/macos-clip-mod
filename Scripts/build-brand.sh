@@ -125,22 +125,57 @@ if [ "$BRAND_NAME" != "FnSound" ] && [ -f "$BRAND_DIR/brand.json" ]; then
 
         echo "Generated and installed app icon"
 
-        # Copy menu bar icon if exists
-        if [ -f "$BRAND_DIR/Icons/menubar_18x18.png" ]; then
-            cp "$BRAND_DIR/Icons/menubar_18x18.png" "$RESOURCES_DIR/MenuBarIcon.png"
-            echo "Copied menu bar icon"
+        # Copy menu bar icons if they exist
+        if [ -f "$BRAND_DIR/Icons/menubar_small.png" ]; then
+            cp "$BRAND_DIR/Icons/menubar_small.png" "$RESOURCES_DIR/"
+            echo "Copied small menu bar icon"
+        fi
+        if [ -f "$BRAND_DIR/Icons/menubar_large.png" ]; then
+            cp "$BRAND_DIR/Icons/menubar_large.png" "$RESOURCES_DIR/"
+            echo "Copied large menu bar icon"
+        fi
+        if [ -f "$BRAND_DIR/Icons/menubar_letter.png" ]; then
+            cp "$BRAND_DIR/Icons/menubar_letter.png" "$RESOURCES_DIR/"
+            echo "Copied letter menu bar icon"
         fi
     fi
 
     echo "Branding applied successfully!"
 fi
 
-# Re-sign the app (ad-hoc for local testing)
-echo "Re-signing app..."
-codesign --force --deep --sign - "$OUTPUT_APP"
+# Re-sign the app with Developer ID certificate
+echo "Re-signing app with Developer ID..."
+
+# Find Developer ID certificate
+DEVELOPER_ID=$(security find-identity -v -p codesigning | grep "Developer ID Application" | head -1 | sed 's/.*"\(.*\)".*/\1/')
+
+if [ -z "$DEVELOPER_ID" ]; then
+    echo "Warning: No Developer ID certificate found. Using ad-hoc signing."
+    echo "         The app will work locally but won't pass notarization."
+    codesign --force --deep --sign - "$OUTPUT_APP"
+else
+    echo "Using certificate: $DEVELOPER_ID"
+
+    # Sign with Developer ID, timestamp, and hardened runtime
+    # Must sign nested components first, then the app bundle
+    codesign --force --timestamp --options runtime \
+        --sign "$DEVELOPER_ID" \
+        "$OUTPUT_APP/Contents/MacOS/FnSound"
+
+    codesign --force --timestamp --options runtime \
+        --sign "$DEVELOPER_ID" \
+        "$OUTPUT_APP"
+
+    echo "Signed with Developer ID certificate"
+fi
 
 echo ""
 echo "Build complete!"
 echo "Output: $OUTPUT_APP"
 echo ""
 echo "To run: open \"$OUTPUT_APP\""
+echo ""
+if [ -n "$DEVELOPER_ID" ]; then
+    echo "To create notarized DMG:"
+    echo "  ./Scripts/create-dmg.sh \"$OUTPUT_APP\" --notarize"
+fi

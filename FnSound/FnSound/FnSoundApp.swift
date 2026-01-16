@@ -1,4 +1,5 @@
 import SwiftUI
+import AppKit
 
 /// FnSound - A macOS menu bar app that plays a sound when the fn key is pressed alone.
 ///
@@ -12,11 +13,13 @@ struct FnSoundApp: App {
 
     var body: some Scene {
         // Menu bar icon and dropdown menu
-        MenuBarExtra("FnSound", systemImage: "speaker.wave.2.fill") {
+        MenuBarExtra {
             MenuBarView()
                 .environmentObject(keyMonitor)
                 .environmentObject(soundPlayer)
                 .environmentObject(settings)
+        } label: {
+            menuBarIcon
         }
 
         // Settings window (accessible from menu bar)
@@ -26,6 +29,43 @@ struct FnSoundApp: App {
                 .environmentObject(soundPlayer)
                 .environmentObject(settings)
         }
+    }
+
+    /// Menu bar icon - based on user's selected style
+    @ViewBuilder
+    private var menuBarIcon: some View {
+        switch settings.menuBarIconStyle {
+        case .smallText:
+            if let icon = loadIcon(named: "menubar_small") {
+                Image(nsImage: icon)
+            } else {
+                Image(systemName: "speaker.wave.2.fill")
+            }
+        case .largeText:
+            if let icon = loadIcon(named: "menubar_large") {
+                Image(nsImage: icon)
+            } else {
+                Image(systemName: "speaker.wave.2.fill")
+            }
+        case .letter:
+            if let icon = loadIcon(named: "menubar_letter") {
+                Image(nsImage: icon)
+            } else {
+                Image(systemName: "speaker.wave.2.fill")
+            }
+        case .soundIcon:
+            Image(systemName: "speaker.wave.2.fill")
+        }
+    }
+
+    /// Load menu bar icon from app bundle Resources
+    private func loadIcon(named name: String) -> NSImage? {
+        guard let iconURL = Bundle.main.url(forResource: name, withExtension: "png"),
+              let image = NSImage(contentsOf: iconURL) else {
+            return nil
+        }
+        image.isTemplate = true
+        return image
     }
 
     init() {

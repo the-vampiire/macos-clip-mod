@@ -103,6 +103,36 @@ echo ""
 echo "DMG created: $DMG_PATH"
 echo "Size: $(du -h "$DMG_PATH" | cut -f1)"
 
+# Set the DMG file's icon (not just the volume icon)
+ICON_PATH="$APP_PATH/Contents/Resources/AppIcon.icns"
+if [ -f "$ICON_PATH" ]; then
+    echo "Setting DMG file icon..."
+
+    # Create a temp directory for icon work
+    ICON_TEMP=$(mktemp -d)
+
+    # Use sips to convert icns to iconset, then to a resource
+    # DeRez/Rez approach to set custom icon on the DMG file
+    sips -i "$ICON_PATH" >/dev/null 2>&1 || true
+
+    # Copy icon to DMG using resource fork
+    # This uses the Finder's "paste icon" approach via script
+    osascript <<EOF
+use framework "Foundation"
+use framework "AppKit"
+use scripting additions
+
+set iconFile to POSIX file "$ICON_PATH"
+set dmgFile to POSIX file "$DMG_PATH"
+
+set iconImage to current application's NSImage's alloc()'s initWithContentsOfFile:"$ICON_PATH"
+current application's NSWorkspace's sharedWorkspace()'s setIcon:iconImage forFile:"$DMG_PATH" options:0
+EOF
+
+    rm -rf "$ICON_TEMP"
+    echo "DMG file icon set"
+fi
+
 # Notarize if requested
 if [ "$NOTARIZE" = true ]; then
     echo ""

@@ -17,24 +17,24 @@ struct SettingsView: View {
                 Text("Shorter delay = faster response, but may trigger accidentally when using fn+key combos. Longer delay = more reliable modifier detection.")
                     .font(.caption)
                     .foregroundColor(.secondary)
+            }
 
-                Divider()
-
-                Toggle("Block system fn key behavior", isOn: $settings.blockSystemBehavior)
-                    .onChange(of: settings.blockSystemBehavior) { _, newValue in
-                        // Need to restart monitoring to apply the change
-                        if keyMonitor.isMonitoring {
-                            keyMonitor.stop()
-                            keyMonitor.blockSystemBehavior = newValue
-                            keyMonitor.start()
-                        } else {
-                            keyMonitor.blockSystemBehavior = newValue
-                        }
+            // System fn key behavior
+            Section("Disable System fn Key Popup") {
+                HStack {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("To prevent the input source switcher from appearing when you press fn:")
+                            .font(.callout)
+                        Text("Set \"Press 🌐 key to\" → \"Do Nothing\"")
+                            .font(.callout)
+                            .fontWeight(.medium)
                     }
+                    Spacer()
+                }
 
-                Text("When enabled, pressing fn alone won't show the input source switcher or other system UI. Requires restart of monitoring to take effect.")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
+                Button("Open Keyboard Settings") {
+                    openKeyboardSettings()
+                }
             }
 
             // Permissions
@@ -185,6 +185,12 @@ struct SettingsView: View {
 
     private func openPrivacySettings() {
         if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_ListenEvent") {
+            NSWorkspace.shared.open(url)
+        }
+    }
+
+    private func openKeyboardSettings() {
+        if let url = URL(string: "x-apple.systempreferences:com.apple.Keyboard-Settings.extension") {
             NSWorkspace.shared.open(url)
         }
     }
