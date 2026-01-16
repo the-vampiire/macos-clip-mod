@@ -114,7 +114,7 @@ jobs:
           codesign --force --deep --timestamp --options runtime \
             --sign "$IDENTITY" \
             --keychain "$KEYCHAIN_PATH" \
-            --entitlements ../../../FnSound/FnSound.entitlements \
+            --entitlements ../../../FnSound/FnSound/FnSound.entitlements \
             FnSound.app
 
           # Verify
