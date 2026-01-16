@@ -10,11 +10,6 @@ on:
         description: 'Version number (e.g., 1.0.0)'
         required: true
 
-env:
-  APP_NAME: FnSound
-  SCHEME: FnSound
-  PROJECT_PATH: FnSound/FnSound.xcodeproj
-
 permissions:
   contents: write
 
@@ -59,126 +54,45 @@ jobs:
           # Save keychain path for later
           echo "KEYCHAIN_PATH=$KEYCHAIN_PATH" >> $GITHUB_ENV
 
-      - name: Add Sparkle package
+      - name: Install create-dmg
+        run: brew install create-dmg
+
+      - name: Update version in brand.json
         run: |
-          cd FnSound
-          xcodebuild -resolvePackageDependencies \
-            -project FnSound.xcodeproj \
-            -scheme FnSound \
-            -clonedSourcePackagesDirPath ../SPMCache
+          VERSION=${{ steps.version.outputs.VERSION }}
+          # Update the version in brand.json
+          cd Branding/LIFN
+          python3 -c "
+          import json
+          with open('brand.json', 'r') as f:
+              data = json.load(f)
+          data['version'] = '$VERSION'
+          with open('brand.json', 'w') as f:
+              json.dump(data, f, indent=2)
+          "
 
-      - name: Update version in project
+      - name: Build branded app
         run: |
-          cd FnSound
-          agvtool new-marketing-version ${{ steps.version.outputs.VERSION }}
-          agvtool new-version -all ${{ github.run_number }}
+          # Use the same build script as local development
+          ./Scripts/build-brand.sh LIFN Release
 
-      - name: Build app
-        run: |
-          cd FnSound
-          xcodebuild -project FnSound.xcodeproj \
-            -scheme FnSound \
-            -configuration Release \
-            -derivedDataPath build \
-            -clonedSourcePackagesDirPath ../SPMCache \
-            CODE_SIGN_IDENTITY="Developer ID Application" \
-            CODE_SIGN_STYLE=Manual \
-            DEVELOPMENT_TEAM="${{ secrets.APPLE_TEAM_ID }}" \
-            ENABLE_HARDENED_RUNTIME=YES \
-            CODE_SIGN_INJECT_BASE_ENTITLEMENTS=NO \
-            OTHER_CODE_SIGN_FLAGS="--keychain $KEYCHAIN_PATH --timestamp --options runtime"
-
-          # Move app to Export folder
-          mkdir -p build/Export
-          cp -R build/Build/Products/Release/FnSound.app build/Export/
-
-      - name: Re-sign frameworks and app for notarization
-        run: |
-          cd FnSound/build/Export
-          IDENTITY="Developer ID Application: patrick cleary (${{ secrets.APPLE_TEAM_ID }})"
-
-          # Re-sign all Sparkle framework binaries
-          find FnSound.app/Contents/Frameworks -name "*.framework" -o -name "*.app" -o -name "*.xpc" | while read framework; do
-            codesign --force --deep --timestamp --options runtime \
-              --sign "$IDENTITY" \
-              --keychain "$KEYCHAIN_PATH" \
-              "$framework" || true
-          done
-
-          # Re-sign individual binaries in Sparkle framework
-          find FnSound.app/Contents/Frameworks/Sparkle.framework -type f -perm +111 | while read binary; do
-            codesign --force --timestamp --options runtime \
-              --sign "$IDENTITY" \
-              --keychain "$KEYCHAIN_PATH" \
-              "$binary" || true
-          done
-
-          # Re-sign the main app
-          codesign --force --deep --timestamp --options runtime \
-            --sign "$IDENTITY" \
-            --keychain "$KEYCHAIN_PATH" \
-            --entitlements ../../../FnSound/FnSound/FnSound.entitlements \
-            FnSound.app
-
-          # Verify
-          codesign --verify --deep --strict --verbose=4 FnSound.app
-
-      - name: Notarize app
+      - name: Create and notarize DMG
         env:
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_APP_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         run: |
-          cd FnSound/build/Export
-
-          # Create ZIP for notarization
-          ditto -c -k --keepParent FnSound.app FnSound.zip
-
-          # Submit for notarization and capture submission ID
-          SUBMIT_OUTPUT=$(xcrun notarytool submit FnSound.zip \
+          # Store credentials for notarytool
+          xcrun notarytool store-credentials "apple-notary" \
             --apple-id "$APPLE_ID" \
             --password "$APPLE_APP_PASSWORD" \
-            --team-id "$APPLE_TEAM_ID" \
-            --wait 2>&1) || true
+            --team-id "$APPLE_TEAM_ID"
 
-          echo "$SUBMIT_OUTPUT"
+          # Use the same DMG script as local development
+          ./Scripts/create-dmg.sh build/LIFN/LIFN.app --notarize
 
-          # Extract submission ID and check status
-          SUBMISSION_ID=$(echo "$SUBMIT_OUTPUT" | grep "id:" | head -1 | awk '{print $2}')
-
-          if echo "$SUBMIT_OUTPUT" | grep -q "status: Invalid"; then
-            echo "Notarization failed. Fetching log..."
-            xcrun notarytool log "$SUBMISSION_ID" \
-              --apple-id "$APPLE_ID" \
-              --password "$APPLE_APP_PASSWORD" \
-              --team-id "$APPLE_TEAM_ID" \
-              notarization-log.json
-            cat notarization-log.json
-            exit 1
-          fi
-
-          # Staple the notarization ticket
-          xcrun stapler staple FnSound.app
-
-      - name: Create DMG
-        run: |
-          cd FnSound/build/Export
-
-          # Create DMG
-          hdiutil create -volname "LIFN" \
-            -srcfolder FnSound.app \
-            -ov -format UDZO \
-            LIFN-${{ steps.version.outputs.VERSION }}.dmg
-
-          # Notarize DMG
-          xcrun notarytool submit LIFN-${{ steps.version.outputs.VERSION }}.dmg \
-            --apple-id "${{ secrets.APPLE_ID }}" \
-            --password "${{ secrets.APPLE_APP_PASSWORD }}" \
-            --team-id "${{ secrets.APPLE_TEAM_ID }}" \
-            --wait
-
-          # Staple DMG
-          xcrun stapler staple LIFN-${{ steps.version.outputs.VERSION }}.dmg
+          # Rename DMG with version
+          mv dist/LIFN.dmg dist/LIFN-${{ steps.version.outputs.VERSION }}.dmg
 
       - name: Sign update with Sparkle
         env:
@@ -189,16 +103,14 @@ jobs:
           mkdir -p sparkle-tools
           tar -xf sparkle.tar.xz -C sparkle-tools
 
-          cd FnSound/build/Export
-
           # Create signature
           echo "$SPARKLE_PRIVATE_KEY" > $RUNNER_TEMP/sparkle_private_key
-          SIGNATURE=$(../../../sparkle-tools/bin/sign_update LIFN-${{ steps.version.outputs.VERSION }}.dmg -f $RUNNER_TEMP/sparkle_private_key)
+          SIGNATURE=$(./sparkle-tools/bin/sign_update dist/LIFN-${{ steps.version.outputs.VERSION }}.dmg -f $RUNNER_TEMP/sparkle_private_key)
 
           echo "SPARKLE_SIGNATURE=$SIGNATURE" >> $GITHUB_ENV
 
           # Get file size
-          FILE_SIZE=$(stat -f%z LIFN-${{ steps.version.outputs.VERSION }}.dmg)
+          FILE_SIZE=$(stat -f%z dist/LIFN-${{ steps.version.outputs.VERSION }}.dmg)
           echo "FILE_SIZE=$FILE_SIZE" >> $GITHUB_ENV
 
       - name: Generate appcast.xml
@@ -207,30 +119,33 @@ jobs:
           DATE=$(date -R)
           DMG_URL="https://github.com/${{ github.repository }}/releases/download/v${VERSION}/LIFN-${VERSION}.dmg"
 
+          # Extract just the signature part (without the length)
+          SIG_ONLY=$(echo "$SPARKLE_SIGNATURE" | sed 's/sparkle:edSignature="\([^"]*\)".*/\1/')
+
           cat > appcast.xml << EOF
-          <?xml version="1.0" encoding="utf-8"?>
-          <rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle" xmlns:dc="http://purl.org/dc/elements/1.1/">
-            <channel>
-              <title>LIFN Updates</title>
-              <link>https://the-vampiire.github.io/macos-clip-mod/appcast.xml</link>
-              <description>Most recent updates to LIFN</description>
-              <language>en</language>
-              <item>
-                <title>Version ${VERSION}</title>
-                <pubDate>${DATE}</pubDate>
-                <enclosure
-                  url="${DMG_URL}"
-                  sparkle:version="${{ github.run_number }}"
-                  sparkle:shortVersionString="${VERSION}"
-                  length="${FILE_SIZE}"
-                  type="application/octet-stream"
-                  sparkle:edSignature="${SPARKLE_SIGNATURE}"
-                />
-                <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
-              </item>
-            </channel>
-          </rss>
-          EOF
+<?xml version="1.0" encoding="utf-8"?>
+<rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle" xmlns:dc="http://purl.org/dc/elements/1.1/">
+  <channel>
+    <title>LIFN Updates</title>
+    <link>https://the-vampiire.github.io/macos-clip-mod/appcast.xml</link>
+    <description>Most recent updates to LIFN</description>
+    <language>en</language>
+    <item>
+      <title>Version ${VERSION}</title>
+      <pubDate>${DATE}</pubDate>
+      <enclosure
+        url="${DMG_URL}"
+        sparkle:version="${{ github.run_number }}"
+        sparkle:shortVersionString="${VERSION}"
+        length="${FILE_SIZE}"
+        type="application/octet-stream"
+        sparkle:edSignature="${SIG_ONLY}"
+      />
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+    </item>
+  </channel>
+</rss>
+EOF
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v1
@@ -238,7 +153,7 @@ jobs:
           name: LIFN v${{ steps.version.outputs.VERSION }}
           tag_name: v${{ steps.version.outputs.VERSION }}
           files: |
-            FnSound/build/Export/LIFN-${{ steps.version.outputs.VERSION }}.dmg
+            dist/LIFN-${{ steps.version.outputs.VERSION }}.dmg
           body: |
             ## LIFN v${{ steps.version.outputs.VERSION }}
 

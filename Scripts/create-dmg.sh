@@ -76,6 +76,65 @@ echo "  Source: $APP_PATH"
 echo "  Output: $DMG_PATH"
 echo ""
 
+# Re-sign Sparkle framework with Developer ID for notarization
+SPARKLE_FRAMEWORK="$APP_PATH/Contents/Frameworks/Sparkle.framework"
+if [ -d "$SPARKLE_FRAMEWORK" ]; then
+    echo "Re-signing Sparkle framework for notarization..."
+
+    # Find the Developer ID Application certificate
+    IDENTITY=$(security find-identity -v -p codesigning | grep "Developer ID Application" | head -1 | sed 's/.*"\(Developer ID Application[^"]*\)".*/\1/')
+
+    if [ -z "$IDENTITY" ]; then
+        echo "Warning: No Developer ID Application certificate found"
+        echo "Sparkle framework will not be re-signed"
+    else
+        echo "Using identity: $IDENTITY"
+
+        # Re-sign all nested code in Sparkle framework (inside-out)
+        # XPC services first
+        find "$SPARKLE_FRAMEWORK" -name "*.xpc" -type d | while read xpc; do
+            echo "  Signing: $(basename "$xpc")"
+            codesign --force --deep --timestamp --options runtime \
+                --sign "$IDENTITY" "$xpc" 2>/dev/null || true
+        done
+
+        # Nested apps
+        find "$SPARKLE_FRAMEWORK" -name "*.app" -type d | while read app; do
+            echo "  Signing: $(basename "$app")"
+            codesign --force --deep --timestamp --options runtime \
+                --sign "$IDENTITY" "$app" 2>/dev/null || true
+        done
+
+        # Individual binaries
+        find "$SPARKLE_FRAMEWORK/Versions/B" -type f -perm +111 ! -name "*.plist" | while read binary; do
+            echo "  Signing: $(basename "$binary")"
+            codesign --force --timestamp --options runtime \
+                --sign "$IDENTITY" "$binary" 2>/dev/null || true
+        done
+
+        # Finally the framework itself
+        echo "  Signing: Sparkle.framework"
+        codesign --force --deep --timestamp --options runtime \
+            --sign "$IDENTITY" "$SPARKLE_FRAMEWORK"
+
+        # Re-sign the main app to pick up framework changes
+        echo "  Re-signing main app..."
+        ENTITLEMENTS="$PROJECT_ROOT/FnSound/FnSound/FnSound.entitlements"
+        if [ -f "$ENTITLEMENTS" ]; then
+            codesign --force --deep --timestamp --options runtime \
+                --sign "$IDENTITY" \
+                --entitlements "$ENTITLEMENTS" \
+                "$APP_PATH"
+        else
+            codesign --force --deep --timestamp --options runtime \
+                --sign "$IDENTITY" "$APP_PATH"
+        fi
+
+        echo "Sparkle framework re-signed"
+        echo ""
+    fi
+fi
+
 # Create the DMG with a nice installer layout
 create-dmg \
     --volname "$APP_NAME" \
