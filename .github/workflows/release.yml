@@ -82,11 +82,43 @@ jobs:
             CODE_SIGN_STYLE=Manual \
             DEVELOPMENT_TEAM="${{ secrets.APPLE_TEAM_ID }}" \
             ENABLE_HARDENED_RUNTIME=YES \
-            OTHER_CODE_SIGN_FLAGS="--keychain $KEYCHAIN_PATH --options runtime"
+            CODE_SIGN_INJECT_BASE_ENTITLEMENTS=NO \
+            OTHER_CODE_SIGN_FLAGS="--keychain $KEYCHAIN_PATH --timestamp --options runtime"
 
           # Move app to Export folder
           mkdir -p build/Export
           cp -R build/Build/Products/Release/FnSound.app build/Export/
+
+      - name: Re-sign frameworks and app for notarization
+        run: |
+          cd FnSound/build/Export
+          IDENTITY="Developer ID Application: patrick cleary (${{ secrets.APPLE_TEAM_ID }})"
+
+          # Re-sign all Sparkle framework binaries
+          find FnSound.app/Contents/Frameworks -name "*.framework" -o -name "*.app" -o -name "*.xpc" | while read framework; do
+            codesign --force --deep --timestamp --options runtime \
+              --sign "$IDENTITY" \
+              --keychain "$KEYCHAIN_PATH" \
+              "$framework" || true
+          done
+
+          # Re-sign individual binaries in Sparkle framework
+          find FnSound.app/Contents/Frameworks/Sparkle.framework -type f -perm +111 | while read binary; do
+            codesign --force --timestamp --options runtime \
+              --sign "$IDENTITY" \
+              --keychain "$KEYCHAIN_PATH" \
+              "$binary" || true
+          done
+
+          # Re-sign the main app
+          codesign --force --deep --timestamp --options runtime \
+            --sign "$IDENTITY" \
+            --keychain "$KEYCHAIN_PATH" \
+            --entitlements ../../../FnSound/FnSound.entitlements \
+            FnSound.app
+
+          # Verify
+          codesign --verify --deep --strict --verbose=4 FnSound.app
 
       - name: Notarize app
         env:
