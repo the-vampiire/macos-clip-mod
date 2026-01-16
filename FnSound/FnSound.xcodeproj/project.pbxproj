@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		A11111110000000000000001 /* FnSoundApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000001 /* FnSoundApp.swift */; };
+		A11111110000000000000012 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000015 /* AppDelegate.swift */; };
 		A11111110000000000000002 /* KeyMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000002 /* KeyMonitor.swift */; };
 		A11111110000000000000003 /* SoundPlayer.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000003 /* SoundPlayer.swift */; };
 		A11111110000000000000004 /* SettingsManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000004 /* SettingsManager.swift */; };
@@ -23,6 +24,7 @@
 
 /* Begin PBXFileReference section */
 		A10000000000000000000001 /* FnSoundApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FnSoundApp.swift; sourceTree = "<group>"; };
+		A10000000000000000000015 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
 		A10000000000000000000002 /* KeyMonitor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyMonitor.swift; sourceTree = "<group>"; };
 		A10000000000000000000003 /* SoundPlayer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SoundPlayer.swift; sourceTree = "<group>"; };
 		A10000000000000000000004 /* SettingsManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsManager.swift; sourceTree = "<group>"; };
@@ -62,6 +64,7 @@
 			isa = PBXGroup;
 			children = (
 				A10000000000000000000001 /* FnSoundApp.swift */,
+				A10000000000000000000015 /* AppDelegate.swift */,
 				A10000000000000000000008 /* FnSound.entitlements */,
 				A10000000000000000000009 /* Info.plist */,
 				A10000000000000000000007 /* Assets.xcassets */,
@@ -175,6 +178,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				A11111110000000000000001 /* FnSoundApp.swift in Sources */,
+				A11111110000000000000012 /* AppDelegate.swift in Sources */,
 				A11111110000000000000002 /* KeyMonitor.swift in Sources */,
 				A11111110000000000000003 /* SoundPlayer.swift in Sources */,
 				A11111110000000000000004 /* SettingsManager.swift in Sources */,

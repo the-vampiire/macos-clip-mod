@@ -187,11 +187,15 @@ if [ -z "$DEVELOPER_ID" ]; then
 else
     echo "Using certificate: $DEVELOPER_ID"
 
-    # Sign with Developer ID, timestamp, hardened runtime, and entitlements
-    codesign --force --timestamp --options runtime \
-        --sign "$DEVELOPER_ID" \
-        --entitlements "$ENTITLEMENTS" \
-        "$OUTPUT_APP/Contents/MacOS/FnSound"
+    # Sign all executables in MacOS directory (including debug dylibs)
+    for file in "$OUTPUT_APP/Contents/MacOS"/*; do
+        if [ -f "$file" ]; then
+            codesign --force --timestamp --options runtime \
+                --sign "$DEVELOPER_ID" \
+                --entitlements "$ENTITLEMENTS" \
+                "$file"
+        fi
+    done
 
     codesign --force --timestamp --options runtime \
         --sign "$DEVELOPER_ID" \

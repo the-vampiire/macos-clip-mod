@@ -7,9 +7,29 @@ import AppKit
 /// events to detect when the fn key is pressed without any other key combination.
 @main
 struct FnSoundApp: App {
-    @StateObject private var keyMonitor = KeyMonitor()
-    @StateObject private var soundPlayer = SoundPlayer()
-    @StateObject private var settings = SettingsManager()
+    @NSApplicationDelegateAdaptor private var appDelegate: AppDelegate
+    @StateObject private var keyMonitor: KeyMonitor
+    @StateObject private var soundPlayer: SoundPlayer
+    @StateObject private var settings: SettingsManager
+
+    init() {
+        // Create state objects
+        let keyMonitor = KeyMonitor()
+        let soundPlayer = SoundPlayer()
+        let settings = SettingsManager()
+
+        // Wrap in StateObject
+        _keyMonitor = StateObject(wrappedValue: keyMonitor)
+        _soundPlayer = StateObject(wrappedValue: soundPlayer)
+        _settings = StateObject(wrappedValue: settings)
+
+        // Configure delegate for app launch initialization
+        appDelegate.configure(
+            keyMonitor: keyMonitor,
+            soundPlayer: soundPlayer,
+            settings: settings
+        )
+    }
 
     var body: some Scene {
         // Menu bar icon and dropdown menu
@@ -68,8 +88,4 @@ struct FnSoundApp: App {
         return image
     }
 
-    init() {
-        // Initial setup is done in MenuBarView.onAppear to ensure
-        // environment objects are properly available
-    }
 }
