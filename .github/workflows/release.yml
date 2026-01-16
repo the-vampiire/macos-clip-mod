@@ -68,6 +68,28 @@ jobs:
               json.dump(data, f, indent=2)
           PYEOF
 
+      - name: Extract changelog
+        id: changelog
+        run: |
+          VERSION=${{ steps.version.outputs.VERSION }}
+          # Extract changelog for this version (between ## [version] and next ## or EOF)
+          NOTES=$(awk "/^## \\[${VERSION}\\]/{flag=1; next} /^## \\[/{flag=0} flag" CHANGELOG.md | sed '/^$/d')
+          # Escape for GitHub Actions output
+          NOTES="${NOTES//'%'/'%25'}"
+          NOTES="${NOTES//$'\n'/'%0A'}"
+          NOTES="${NOTES//$'\r'/'%0D'}"
+          echo "NOTES<<EOF" >> $GITHUB_OUTPUT
+          awk "/^## \\[${VERSION}\\]/{flag=1; next} /^## \\[/{flag=0} flag" CHANGELOG.md | sed '/^$/d' >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+          # Also create HTML version for appcast
+          HTML_NOTES=$(awk "/^## \\[${VERSION}\\]/{flag=1; next} /^## \\[/{flag=0} flag" CHANGELOG.md | sed '/^$/d' | sed 's/^- /<li>/;s/$/<\/li>/')
+          echo "HTML_NOTES<<EOF" >> $GITHUB_OUTPUT
+          echo "<ul>" >> $GITHUB_OUTPUT
+          awk "/^## \\[${VERSION}\\]/{flag=1; next} /^## \\[/{flag=0} flag" CHANGELOG.md | sed '/^$/d' | sed 's/^- /<li>/;s/$/<\/li>/' >> $GITHUB_OUTPUT
+          echo "</ul>" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
       - name: Build branded app
         run: ./Scripts/build-brand.sh LIFN Release
 
@@ -108,9 +130,52 @@ jobs:
           DATE=$(date -R)
           DMG_URL="https://github.com/${{ github.repository }}/releases/download/v${VERSION}/LIFN-${VERSION}.dmg"
           SIG_ONLY=$(echo "$SPARKLE_SIGNATURE" | sed 's/sparkle:edSignature="\([^"]*\)".*/\1/')
+          BUILD_NUM=${{ github.run_number }}
 
-          cat > appcast.xml << APPCAST_EOF
-          <?xml version="1.0" encoding="utf-8"?>
+          # Fetch existing appcast to preserve history
+          curl -sf https://the-vampiire.github.io/macos-clip-mod/appcast.xml -o old_appcast.xml || touch old_appcast.xml
+
+          # Generate appcast with history using Python
+          python3 << PYEOF
+          import re
+
+          version = "${VERSION}"
+          date = "${DATE}"
+          dmg_url = "${DMG_URL}"
+          signature = "${SIG_ONLY}"
+          file_size = "${FILE_SIZE}"
+          build_num = "${BUILD_NUM}"
+
+          # Read changelog and extract notes for this version
+          with open('CHANGELOG.md', 'r') as f:
+              changelog = f.read()
+
+          # Extract notes for current version
+          pattern = rf"## \[{re.escape(version)}\][^\n]*\n(.*?)(?=\n## \[|$)"
+          match = re.search(pattern, changelog, re.DOTALL)
+          notes = match.group(1).strip() if match else ""
+
+          # Convert to HTML
+          html_notes = "<ul>\n"
+          for line in notes.split('\n'):
+              line = line.strip()
+              if line.startswith('- '):
+                  html_notes += f"  <li>{line[2:]}</li>\n"
+          html_notes += "</ul>"
+
+          # Read old appcast and extract previous items
+          old_items = []
+          try:
+              with open('old_appcast.xml', 'r') as f:
+                  content = f.read()
+              # Extract item blocks (simple regex approach)
+              items = re.findall(r'<item>.*?</item>', content, re.DOTALL)
+              old_items = items[:9]  # Keep up to 9 old items
+          except:
+              pass
+
+          # Build new appcast
+          appcast = '''<?xml version="1.0" encoding="utf-8"?>
           <rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle" xmlns:dc="http://purl.org/dc/elements/1.1/">
             <channel>
               <title>LIFN Updates</title>
@@ -118,21 +183,31 @@ jobs:
               <description>Most recent updates to LIFN</description>
               <language>en</language>
               <item>
-                <title>Version ${VERSION}</title>
-                <pubDate>${DATE}</pubDate>
+                <title>Version ''' + version + '''</title>
+                <pubDate>''' + date + '''</pubDate>
+                <description><![CDATA[''' + html_notes + ''']]></description>
                 <enclosure
-                  url="${DMG_URL}"
-                  sparkle:version="${{ github.run_number }}"
-                  sparkle:shortVersionString="${VERSION}"
-                  length="${FILE_SIZE}"
+                  url="''' + dmg_url + '''"
+                  sparkle:version="''' + build_num + '''"
+                  sparkle:shortVersionString="''' + version + '''"
+                  length="''' + file_size + '''"
                   type="application/octet-stream"
-                  sparkle:edSignature="${SIG_ONLY}"
+                  sparkle:edSignature="''' + signature + '''"
                 />
                 <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
               </item>
-            </channel>
-          </rss>
-          APPCAST_EOF
+          '''
+
+          # Add old items
+          for item in old_items:
+              appcast += "    " + item + "\n"
+
+          appcast += '''  </channel>
+          </rss>'''
+
+          with open('appcast.xml', 'w') as f:
+              f.write(appcast)
+          PYEOF
 
       - name: Create Release
         uses: softprops/action-gh-release@v1
@@ -141,9 +216,9 @@ jobs:
           tag_name: v${{ steps.version.outputs.VERSION }}
           files: dist/LIFN-${{ steps.version.outputs.VERSION }}.dmg
           body: |
-            ## LIFN v${{ steps.version.outputs.VERSION }}
+            ## What's New
 
-            Download and install to get started.
+            ${{ steps.changelog.outputs.NOTES }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
