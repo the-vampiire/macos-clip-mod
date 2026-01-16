@@ -177,6 +177,12 @@ struct MenuBarView: View {
         }
         .keyboardShortcut(",", modifiers: .command)
 
+        Button("Check for Updates...") {
+            UpdaterManager.shared.checkForUpdates()
+        }
+
+        Divider()
+
         Button("Quit \(brandManager.appDisplayName)") {
             NSApplication.shared.terminate(nil)
         }

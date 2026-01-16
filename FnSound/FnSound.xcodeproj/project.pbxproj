@@ -17,6 +17,7 @@
 		A11111110000000000000008 /* BrandManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000011 /* BrandManager.swift */; };
 		A11111110000000000000009 /* ToastyWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000012 /* ToastyWindow.swift */; };
 		A11111110000000000000010 /* ToastyManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000013 /* ToastyManager.swift */; };
+		A11111110000000000000011 /* UpdaterManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000014 /* UpdaterManager.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -33,6 +34,7 @@
 		A10000000000000000000011 /* BrandManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrandManager.swift; sourceTree = "<group>"; };
 		A10000000000000000000012 /* ToastyWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ToastyWindow.swift; sourceTree = "<group>"; };
 		A10000000000000000000013 /* ToastyManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ToastyManager.swift; sourceTree = "<group>"; };
+		A10000000000000000000014 /* UpdaterManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UpdaterManager.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -76,6 +78,7 @@
 				A10000000000000000000011 /* BrandManager.swift */,
 				A10000000000000000000012 /* ToastyWindow.swift */,
 				A10000000000000000000013 /* ToastyManager.swift */,
+				A10000000000000000000014 /* UpdaterManager.swift */,
 			);
 			path = Core;
 			sourceTree = "<group>";
@@ -175,6 +178,7 @@
 				A11111110000000000000008 /* BrandManager.swift in Sources */,
 				A11111110000000000000009 /* ToastyWindow.swift in Sources */,
 				A11111110000000000000010 /* ToastyManager.swift in Sources */,
+				A11111110000000000000011 /* UpdaterManager.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
