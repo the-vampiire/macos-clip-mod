@@ -5,6 +5,8 @@ on:
   push:
     tags:
       - 'v*'
+    branches:
+      - 'release-test-*'
   workflow_dispatch:
     inputs:
       version:
