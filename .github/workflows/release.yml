@@ -15,6 +15,9 @@ env:
   SCHEME: FnSound
   PROJECT_PATH: FnSound/FnSound.xcodeproj
 
+permissions:
+  contents: write
+
 jobs:
   build-and-release:
     runs-on: macos-14
