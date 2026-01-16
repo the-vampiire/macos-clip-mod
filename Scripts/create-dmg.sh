@@ -14,7 +14,7 @@ set -e
 #   brew install create-dmg
 #
 # For notarization, first store your credentials (one-time):
-#   xcrun notarytool store-credentials "fnsound-notarize" \
+#   xcrun notarytool store-credentials "apple-notary" \
 #     --apple-id "your@email.com" \
 #     --team-id "YOURTEAMID" \
 #     --password "app-specific-password"
@@ -27,7 +27,7 @@ PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
 
 APP_PATH="$1"
 NOTARIZE=false
-KEYCHAIN_PROFILE="fnsound-notarize"
+KEYCHAIN_PROFILE="apple-notary"
 
 # Parse arguments
 for arg in "$@"; do
