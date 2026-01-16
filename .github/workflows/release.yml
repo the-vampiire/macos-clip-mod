@@ -53,9 +53,11 @@ jobs:
           security set-key-partition-list -S apple-tool:,apple: -k "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
           security list-keychain -d user -s $KEYCHAIN_PATH
 
+          # Save keychain path for later
+          echo "KEYCHAIN_PATH=$KEYCHAIN_PATH" >> $GITHUB_ENV
+
       - name: Add Sparkle package
         run: |
-          # Add Sparkle as SPM dependency via xcodebuild
           cd FnSound
           xcodebuild -resolvePackageDependencies \
             -project FnSound.xcodeproj \
@@ -65,7 +67,6 @@ jobs:
       - name: Update version in project
         run: |
           cd FnSound
-          # Update marketing version and build number
           agvtool new-marketing-version ${{ steps.version.outputs.VERSION }}
           agvtool new-version -all ${{ github.run_number }}
 
@@ -75,35 +76,16 @@ jobs:
           xcodebuild -project FnSound.xcodeproj \
             -scheme FnSound \
             -configuration Release \
-            -archivePath build/FnSound.xcarchive \
+            -derivedDataPath build \
             -clonedSourcePackagesDirPath ../SPMCache \
-            archive \
             CODE_SIGN_IDENTITY="Developer ID Application" \
             CODE_SIGN_STYLE=Manual \
-            DEVELOPMENT_TEAM="${{ secrets.APPLE_TEAM_ID }}"
+            DEVELOPMENT_TEAM="${{ secrets.APPLE_TEAM_ID }}" \
+            OTHER_CODE_SIGN_FLAGS="--keychain $KEYCHAIN_PATH"
 
-      - name: Export app
-        run: |
-          cd FnSound
-
-          # Create export options plist
-          cat > ExportOptions.plist << EOF
-          <?xml version="1.0" encoding="UTF-8"?>
-          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-          <plist version="1.0">
-          <dict>
-            <key>method</key>
-            <string>developer-id</string>
-            <key>teamID</key>
-            <string>${{ secrets.APPLE_TEAM_ID }}</string>
-          </dict>
-          </plist>
-          EOF
-
-          xcodebuild -exportArchive \
-            -archivePath build/FnSound.xcarchive \
-            -exportOptionsPlist ExportOptions.plist \
-            -exportPath build/Export
+          # Move app to Export folder
+          mkdir -p build/Export
+          cp -R build/Build/Products/Release/FnSound.app build/Export/
 
       - name: Notarize app
         env:
@@ -155,7 +137,6 @@ jobs:
           mkdir -p sparkle-tools
           tar -xf sparkle.tar.xz -C sparkle-tools
 
-          # Sign the DMG with Sparkle's EdDSA key
           cd FnSound/build/Export
 
           # Create signature
@@ -226,12 +207,15 @@ jobs:
           git config user.name "GitHub Actions"
           git config user.email "actions@github.com"
 
-          # Switch to gh-pages branch (create if doesn't exist)
-          git fetch origin gh-pages || true
-          git checkout gh-pages || git checkout --orphan gh-pages
+          # Switch to gh-pages branch
+          git fetch origin gh-pages
+          git checkout gh-pages
+
+          # Remove everything except appcast
+          git rm -rf . || true
 
           # Copy appcast
-          cp appcast.xml .
+          cp $GITHUB_WORKSPACE/appcast.xml .
 
           # Commit and push
           git add appcast.xml
