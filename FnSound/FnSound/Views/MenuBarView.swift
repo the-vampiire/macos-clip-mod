@@ -8,7 +8,7 @@ struct MenuBarView: View {
     @EnvironmentObject var soundPlayer: SoundPlayer
     @EnvironmentObject var settings: SettingsManager
     @StateObject private var brandManager = BrandManager.shared
-    @Environment(\.openSettings) private var openSettings
+    @Environment(\.openSettings) private var openSettings: OpenSettingsAction
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
