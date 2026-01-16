@@ -256,18 +256,21 @@ jobs:
 
       - name: Deploy appcast to GitHub Pages
         run: |
+          # Save the appcast.xml to a temp location
+          cp appcast.xml /tmp/appcast.xml
+
           git config user.name "GitHub Actions"
           git config user.email "actions@github.com"
+
+          # Stash any local changes
+          git stash --include-untracked || true
 
           # Switch to gh-pages branch
           git fetch origin gh-pages
           git checkout gh-pages
 
-          # Remove everything except appcast
-          git rm -rf . || true
-
           # Copy appcast
-          cp $GITHUB_WORKSPACE/appcast.xml .
+          cp /tmp/appcast.xml appcast.xml
 
           # Commit and push
           git add appcast.xml
