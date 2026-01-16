@@ -8,7 +8,6 @@ struct MenuBarView: View {
     @EnvironmentObject var soundPlayer: SoundPlayer
     @EnvironmentObject var settings: SettingsManager
     @StateObject private var brandManager = BrandManager.shared
-    @Environment(\.openSettings) private var openSettings
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
@@ -173,7 +172,11 @@ struct MenuBarView: View {
 
         Button("Settings...") {
             NSApp.activate(ignoringOtherApps: true)
-            openSettings()
+            if #available(macOS 14.0, *) {
+                NSApp.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil)
+            } else {
+                NSApp.sendAction(Selector(("showPreferencesWindow:")), to: nil, from: nil)
+            }
         }
         .keyboardShortcut(",", modifiers: .command)
 
