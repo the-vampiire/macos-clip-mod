@@ -1,4 +1,5 @@
 name: Build, Notarize & Release
+# Builds LIFN app, notarizes with Apple, and creates GitHub Release
 
 on:
   push:
