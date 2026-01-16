@@ -148,6 +148,37 @@ echo "Re-signing app with Developer ID..."
 
 # Find Developer ID certificate
 DEVELOPER_ID=$(security find-identity -v -p codesigning | grep "Developer ID Application" | head -1 | sed 's/.*"\(.*\)".*/\1/')
+ENTITLEMENTS="$PROJECT_ROOT/FnSound/FnSound/FnSound.entitlements"
+
+# Re-sign Sparkle framework if present (required for notarization and Team ID matching)
+SPARKLE_FRAMEWORK="$OUTPUT_APP/Contents/Frameworks/Sparkle.framework"
+if [ -d "$SPARKLE_FRAMEWORK" ] && [ -n "$DEVELOPER_ID" ]; then
+    echo "Re-signing Sparkle framework..."
+
+    # Re-sign XPC services
+    find "$SPARKLE_FRAMEWORK" -name "*.xpc" -type d | while read xpc; do
+        codesign --force --deep --timestamp --options runtime \
+            --sign "$DEVELOPER_ID" "$xpc" 2>/dev/null || true
+    done
+
+    # Re-sign nested apps
+    find "$SPARKLE_FRAMEWORK" -name "*.app" -type d | while read app; do
+        codesign --force --deep --timestamp --options runtime \
+            --sign "$DEVELOPER_ID" "$app" 2>/dev/null || true
+    done
+
+    # Re-sign individual binaries
+    find "$SPARKLE_FRAMEWORK/Versions/B" -type f -perm +111 ! -name "*.plist" | while read binary; do
+        codesign --force --timestamp --options runtime \
+            --sign "$DEVELOPER_ID" "$binary" 2>/dev/null || true
+    done
+
+    # Re-sign the framework itself
+    codesign --force --deep --timestamp --options runtime \
+        --sign "$DEVELOPER_ID" "$SPARKLE_FRAMEWORK"
+
+    echo "Sparkle framework re-signed"
+fi
 
 if [ -z "$DEVELOPER_ID" ]; then
     echo "Warning: No Developer ID certificate found. Using ad-hoc signing."
@@ -156,14 +187,15 @@ if [ -z "$DEVELOPER_ID" ]; then
 else
     echo "Using certificate: $DEVELOPER_ID"
 
-    # Sign with Developer ID, timestamp, and hardened runtime
-    # Must sign nested components first, then the app bundle
+    # Sign with Developer ID, timestamp, hardened runtime, and entitlements
     codesign --force --timestamp --options runtime \
         --sign "$DEVELOPER_ID" \
+        --entitlements "$ENTITLEMENTS" \
         "$OUTPUT_APP/Contents/MacOS/FnSound"
 
     codesign --force --timestamp --options runtime \
         --sign "$DEVELOPER_ID" \
+        --entitlements "$ENTITLEMENTS" \
         "$OUTPUT_APP"
 
     echo "Signed with Developer ID certificate"
