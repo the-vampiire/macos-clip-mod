@@ -1,0 +1,244 @@
+name: Build, Notarize & Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version number (e.g., 1.0.0)'
+        required: true
+
+env:
+  APP_NAME: FnSound
+  SCHEME: FnSound
+  PROJECT_PATH: FnSound/FnSound.xcodeproj
+
+jobs:
+  build-and-release:
+    runs-on: macos-14
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set version from tag or input
+        id: version
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            VERSION="${{ github.event.inputs.version }}"
+          else
+            VERSION="${GITHUB_REF#refs/tags/v}"
+          fi
+          echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
+          echo "Building version $VERSION"
+
+      - name: Install Apple certificate
+        env:
+          CERTIFICATE_P12: ${{ secrets.CERTIFICATE_P12 }}
+          CERTIFICATE_PASSWORD: ${{ secrets.CERTIFICATE_PASSWORD }}
+        run: |
+          # Create temporary keychain
+          KEYCHAIN_PATH=$RUNNER_TEMP/app-signing.keychain-db
+          KEYCHAIN_PASSWORD=$(openssl rand -base64 32)
+
+          security create-keychain -p "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
+          security set-keychain-settings -lut 21600 $KEYCHAIN_PATH
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
+
+          # Import certificate
+          echo "$CERTIFICATE_P12" | base64 --decode > $RUNNER_TEMP/certificate.p12
+          security import $RUNNER_TEMP/certificate.p12 -P "$CERTIFICATE_PASSWORD" -A -t cert -f pkcs12 -k $KEYCHAIN_PATH
+          security set-key-partition-list -S apple-tool:,apple: -k "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
+          security list-keychain -d user -s $KEYCHAIN_PATH
+
+      - name: Add Sparkle package
+        run: |
+          # Add Sparkle as SPM dependency via xcodebuild
+          cd FnSound
+          xcodebuild -resolvePackageDependencies \
+            -project FnSound.xcodeproj \
+            -scheme FnSound \
+            -clonedSourcePackagesDirPath ../SPMCache
+
+      - name: Update version in project
+        run: |
+          cd FnSound
+          # Update marketing version and build number
+          agvtool new-marketing-version ${{ steps.version.outputs.VERSION }}
+          agvtool new-version -all ${{ github.run_number }}
+
+      - name: Build app
+        run: |
+          cd FnSound
+          xcodebuild -project FnSound.xcodeproj \
+            -scheme FnSound \
+            -configuration Release \
+            -archivePath build/FnSound.xcarchive \
+            -clonedSourcePackagesDirPath ../SPMCache \
+            archive \
+            CODE_SIGN_IDENTITY="Developer ID Application" \
+            CODE_SIGN_STYLE=Manual \
+            DEVELOPMENT_TEAM="${{ secrets.APPLE_TEAM_ID }}"
+
+      - name: Export app
+        run: |
+          cd FnSound
+
+          # Create export options plist
+          cat > ExportOptions.plist << EOF
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+            <key>method</key>
+            <string>developer-id</string>
+            <key>teamID</key>
+            <string>${{ secrets.APPLE_TEAM_ID }}</string>
+          </dict>
+          </plist>
+          EOF
+
+          xcodebuild -exportArchive \
+            -archivePath build/FnSound.xcarchive \
+            -exportOptionsPlist ExportOptions.plist \
+            -exportPath build/Export
+
+      - name: Notarize app
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          cd FnSound/build/Export
+
+          # Create ZIP for notarization
+          ditto -c -k --keepParent FnSound.app FnSound.zip
+
+          # Submit for notarization
+          xcrun notarytool submit FnSound.zip \
+            --apple-id "$APPLE_ID" \
+            --password "$APPLE_APP_PASSWORD" \
+            --team-id "$APPLE_TEAM_ID" \
+            --wait
+
+          # Staple the notarization ticket
+          xcrun stapler staple FnSound.app
+
+      - name: Create DMG
+        run: |
+          cd FnSound/build/Export
+
+          # Create DMG
+          hdiutil create -volname "LIFN" \
+            -srcfolder FnSound.app \
+            -ov -format UDZO \
+            LIFN-${{ steps.version.outputs.VERSION }}.dmg
+
+          # Notarize DMG
+          xcrun notarytool submit LIFN-${{ steps.version.outputs.VERSION }}.dmg \
+            --apple-id "${{ secrets.APPLE_ID }}" \
+            --password "${{ secrets.APPLE_APP_PASSWORD }}" \
+            --team-id "${{ secrets.APPLE_TEAM_ID }}" \
+            --wait
+
+          # Staple DMG
+          xcrun stapler staple LIFN-${{ steps.version.outputs.VERSION }}.dmg
+
+      - name: Sign update with Sparkle
+        env:
+          SPARKLE_PRIVATE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY }}
+        run: |
+          # Download Sparkle tools
+          curl -L -o sparkle.tar.xz https://github.com/sparkle-project/Sparkle/releases/download/2.6.4/Sparkle-2.6.4.tar.xz
+          mkdir -p sparkle-tools
+          tar -xf sparkle.tar.xz -C sparkle-tools
+
+          # Sign the DMG with Sparkle's EdDSA key
+          cd FnSound/build/Export
+
+          # Create signature
+          echo "$SPARKLE_PRIVATE_KEY" > $RUNNER_TEMP/sparkle_private_key
+          SIGNATURE=$(../../../sparkle-tools/bin/sign_update LIFN-${{ steps.version.outputs.VERSION }}.dmg -f $RUNNER_TEMP/sparkle_private_key)
+
+          echo "SPARKLE_SIGNATURE=$SIGNATURE" >> $GITHUB_ENV
+
+          # Get file size
+          FILE_SIZE=$(stat -f%z LIFN-${{ steps.version.outputs.VERSION }}.dmg)
+          echo "FILE_SIZE=$FILE_SIZE" >> $GITHUB_ENV
+
+      - name: Generate appcast.xml
+        run: |
+          VERSION=${{ steps.version.outputs.VERSION }}
+          DATE=$(date -R)
+          DMG_URL="https://github.com/${{ github.repository }}/releases/download/v${VERSION}/LIFN-${VERSION}.dmg"
+
+          cat > appcast.xml << EOF
+          <?xml version="1.0" encoding="utf-8"?>
+          <rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle" xmlns:dc="http://purl.org/dc/elements/1.1/">
+            <channel>
+              <title>LIFN Updates</title>
+              <link>https://the-vampiire.github.io/macos-clip-mod/appcast.xml</link>
+              <description>Most recent updates to LIFN</description>
+              <language>en</language>
+              <item>
+                <title>Version ${VERSION}</title>
+                <pubDate>${DATE}</pubDate>
+                <enclosure
+                  url="${DMG_URL}"
+                  sparkle:version="${{ github.run_number }}"
+                  sparkle:shortVersionString="${VERSION}"
+                  length="${FILE_SIZE}"
+                  type="application/octet-stream"
+                  sparkle:edSignature="${SPARKLE_SIGNATURE}"
+                />
+                <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+              </item>
+            </channel>
+          </rss>
+          EOF
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          name: LIFN v${{ steps.version.outputs.VERSION }}
+          tag_name: v${{ steps.version.outputs.VERSION }}
+          files: |
+            FnSound/build/Export/LIFN-${{ steps.version.outputs.VERSION }}.dmg
+          body: |
+            ## LIFN v${{ steps.version.outputs.VERSION }}
+
+            A life-changing menu bar app that reminds you to LIFN.
+
+            ### Installation
+            1. Download `LIFN-${{ steps.version.outputs.VERSION }}.dmg`
+            2. Open the DMG and drag LIFN to Applications
+            3. Launch LIFN from Applications
+
+            ### Auto-Updates
+            LIFN will automatically check for updates and notify you when new versions are available.
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Deploy appcast to GitHub Pages
+        run: |
+          git config user.name "GitHub Actions"
+          git config user.email "actions@github.com"
+
+          # Switch to gh-pages branch (create if doesn't exist)
+          git fetch origin gh-pages || true
+          git checkout gh-pages || git checkout --orphan gh-pages
+
+          # Copy appcast
+          cp appcast.xml .
+
+          # Commit and push
+          git add appcast.xml
+          git commit -m "Update appcast for v${{ steps.version.outputs.VERSION }}" || echo "No changes to commit"
+          git push origin gh-pages
+
+      - name: Cleanup keychain
+        if: always()
+        run: |
+          security delete-keychain $RUNNER_TEMP/app-signing.keychain-db || true

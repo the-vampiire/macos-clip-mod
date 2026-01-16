@@ -1,0 +1,24 @@
+{
+  "brandId": "LIFN",
+  "appName": "LIFN",
+  "bundleIdentifier": "com.lifn.fnsound",
+  "displayName": "LIFN",
+  "version": "1.0.0",
+  "sounds": {
+    "short": {
+      "filename": "LIFN.short.mp3",
+      "displayName": "LIFN Short",
+      "isDefault": true
+    },
+    "full": {
+      "filename": "LIFN.full.mp3",
+      "displayName": "LIFN Full",
+      "isDefault": false
+    }
+  },
+  "menuBarIcon": "menubar_18x18.png",
+  "defaultSettings": {
+    "triggerDelay": 0.4,
+    "blockSystemBehavior": true
+  }
+}
