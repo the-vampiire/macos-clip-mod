@@ -8,7 +8,6 @@ struct MenuBarView: View {
     @EnvironmentObject var soundPlayer: SoundPlayer
     @EnvironmentObject var settings: SettingsManager
     @StateObject private var brandManager = BrandManager.shared
-    @Environment(\.openSettings) private var openSettings: OpenSettingsAction
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
@@ -171,11 +170,13 @@ struct MenuBarView: View {
             }
         }
 
-        Button("Settings...") {
-            NSApp.activate(ignoringOtherApps: true)
-            openSettings()
+        SettingsLink {
+            Text("Settings...")
         }
         .keyboardShortcut(",", modifiers: .command)
+        .simultaneousGesture(TapGesture().onEnded {
+            NSApp.activate(ignoringOtherApps: true)
+        })
 
         Button("Check for Updates...") {
             UpdaterManager.shared.checkForUpdates()
