@@ -7,14 +7,14 @@
     <language>en</language>
     <item>
       <title>Version 1.0.1</title>
-      <pubDate>Thu, 15 Jan 2026 22:13:42 -0500</pubDate>
+      <pubDate>Thu, 15 Jan 2026 22:44:35 -0500</pubDate>
       <enclosure
         url="https://github.com/the-vampiire/macos-clip-mod/releases/download/v1.0.1/LIFN-1.0.1.dmg"
-        sparkle:version="54"
+        sparkle:version="2"
         sparkle:shortVersionString="1.0.1"
-        length="1519948"
+        length="5440650"
         type="application/octet-stream"
-        sparkle:edSignature="9x51EzGWb202/jSaMkKlC7JifGxwnEH5Gg4I8lYOo+pUwbQTCxh+JpyLY+mByrj8Rdz0+vq3J/tQnIyE+NmzBQ=="
+        sparkle:edSignature="YHTfMeXKbyxBPp7yO9P5S8nmqKsjwKYm1y0DPS+K67vogtQ0xvAxI9EyD7QfIhz11vpyIx82CYVDXMDBTlRIBQ=="
       />
       <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
     </item>
