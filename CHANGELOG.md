@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.5] - 2026-01-17
+- Add optional "Launch at Login" setting
+- Simplify menu bar: show only sound picker
+- Reorganize Settings: Permissions section now includes Input Monitoring and system fn key instructions
+- Change random timer intervals to minutes (5m increments, default 30-60m)
+- Add "Check for Updates" button in Settings > About
+
 ## [1.0.4] - 2026-01-16
 - Add changelog to GitHub releases and Sparkle update dialog
 

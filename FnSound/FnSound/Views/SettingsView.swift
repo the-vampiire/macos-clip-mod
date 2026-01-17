@@ -10,6 +10,37 @@ struct SettingsView: View {
 
     var body: some View {
         Form {
+            // General Settings
+            Section("General") {
+                Toggle("Launch at Login", isOn: $settings.launchAtLogin)
+
+                Text("Automatically start \(brandManager.appDisplayName) when you log in.")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+
+            // Permissions (Input Monitoring + System fn key)
+            Section("Permissions") {
+                permissionStatus
+
+                Divider()
+                    .padding(.vertical, 4)
+
+                // System fn key behavior
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Disable System fn Key Popup")
+                        .fontWeight(.medium)
+
+                    Text("To prevent the input source switcher from appearing when you press fn, open Keyboard Settings and set \"Press 🌐 key to\" to \"Do Nothing\" or \"Start Dictation\".")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+
+                    Button("Open Keyboard Settings") {
+                        openKeyboardSettings()
+                    }
+                }
+            }
+
             // Trigger Settings
             Section("Trigger Settings") {
                 triggerDelayControl
@@ -17,24 +48,6 @@ struct SettingsView: View {
                 Text("Shorter delay = faster response, but may trigger accidentally when using fn+key combos. Longer delay = more reliable modifier detection.")
                     .font(.caption)
                     .foregroundColor(.secondary)
-            }
-
-            // System fn key behavior
-            Section("Disable System fn Key Popup") {
-                HStack {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("To prevent the input source switcher from appearing when you press fn:")
-                            .font(.callout)
-                        Text("Set \"Press 🌐 key to\" → \"Do Nothing\"")
-                            .font(.callout)
-                            .fontWeight(.medium)
-                    }
-                    Spacer()
-                }
-
-                Button("Open Keyboard Settings") {
-                    openKeyboardSettings()
-                }
             }
 
             // Random Timer
@@ -57,11 +70,11 @@ struct SettingsView: View {
                         HStack {
                             Text("Min interval:")
                             Spacer()
-                            Text("\(Int(settings.randomTimerMinInterval))s")
+                            Text("\(Int(settings.randomTimerMinInterval / 60))m")
                                 .monospacedDigit()
                                 .foregroundColor(.secondary)
                         }
-                        Slider(value: $settings.randomTimerMinInterval, in: 10...300, step: 10)
+                        Slider(value: $settings.randomTimerMinInterval, in: 300...3600, step: 300)
                             .onChange(of: settings.randomTimerMinInterval) { _, newValue in
                                 // Ensure max is at least min
                                 if settings.randomTimerMaxInterval < newValue {
@@ -76,11 +89,11 @@ struct SettingsView: View {
                         HStack {
                             Text("Max interval:")
                             Spacer()
-                            Text("\(Int(settings.randomTimerMaxInterval))s")
+                            Text("\(Int(settings.randomTimerMaxInterval / 60))m")
                                 .monospacedDigit()
                                 .foregroundColor(.secondary)
                         }
-                        Slider(value: $settings.randomTimerMaxInterval, in: 10...600, step: 10)
+                        Slider(value: $settings.randomTimerMaxInterval, in: 300...7200, step: 300)
                             .onChange(of: settings.randomTimerMaxInterval) { _, newValue in
                                 // Ensure max is at least min
                                 let actualMax = max(newValue, settings.randomTimerMinInterval)
@@ -169,23 +182,13 @@ struct SettingsView: View {
                 }
             }
 
-            // Permissions
-            Section("Permissions") {
-                permissionStatus
-            }
-
-            // Sound Info
-            Section("Current Sound") {
-                soundInfo
-            }
-
             // About
             Section("About") {
                 aboutInfo
             }
         }
         .formStyle(.grouped)
-        .frame(width: 450, height: 750)
+        .frame(width: 450, height: 700)
     }
 
     // MARK: - Trigger Delay Control
@@ -255,43 +258,6 @@ struct SettingsView: View {
         }
     }
 
-    // MARK: - Sound Info
-
-    @ViewBuilder
-    private var soundInfo: some View {
-        HStack {
-            Image(systemName: "music.note")
-                .font(.title2)
-                .foregroundColor(.secondary)
-
-            VStack(alignment: .leading) {
-                if let soundName = soundPlayer.currentSoundName {
-                    Text(soundName)
-                        .fontWeight(.medium)
-                    if soundPlayer.duration > 0 {
-                        Text("Duration: \(soundPlayer.duration, specifier: "%.1f")s")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                    }
-                } else {
-                    Text("No sound selected")
-                        .foregroundColor(.secondary)
-                }
-            }
-
-            Spacer()
-
-            if soundPlayer.hasSoundLoaded {
-                Button(action: {
-                    soundPlayer.play()
-                }) {
-                    Image(systemName: "play.fill")
-                }
-                .help("Test sound")
-            }
-        }
-    }
-
     // MARK: - About Info
 
     @ViewBuilder
@@ -311,6 +277,10 @@ struct SettingsView: View {
         Text("A life-changing menu bar app that reminds you to LIFN.")
             .font(.caption)
             .foregroundColor(.secondary)
+
+        Button("Check for Updates...") {
+            UpdaterManager.shared.checkForUpdates()
+        }
     }
 
     // MARK: - Helpers

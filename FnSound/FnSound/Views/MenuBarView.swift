@@ -1,5 +1,4 @@
 import SwiftUI
-import UniformTypeIdentifiers
 
 /// MenuBarView provides the dropdown menu content for the menu bar icon.
 /// It displays status, controls, and quick access to settings.
@@ -85,23 +84,7 @@ struct MenuBarView: View {
 
     @ViewBuilder
     private var soundSection: some View {
-        // Current sound display
-        HStack {
-            Image(systemName: "music.note")
-                .foregroundColor(.secondary)
-            if let soundName = soundPlayer.currentSoundName {
-                Text(soundName)
-                    .font(.caption)
-                    .lineLimit(1)
-                    .truncationMode(.middle)
-            } else {
-                Text("No sound selected")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-            }
-        }
-
-        // Bundled sounds (if any)
+        // Bundled sounds picker
         if !brandManager.bundledSounds.isEmpty {
             ForEach(brandManager.bundledSounds) { sound in
                 Button(action: {
@@ -120,23 +103,6 @@ struct MenuBarView: View {
                 }
                 .buttonStyle(.plain)
             }
-
-            Divider()
-        }
-
-        // Sound control buttons
-        HStack(spacing: 8) {
-            Button("Choose Sound...") {
-                selectSoundFile()
-            }
-
-            Button(action: {
-                soundPlayer.play()
-            }) {
-                Image(systemName: "play.fill")
-            }
-            .disabled(!soundPlayer.hasSoundLoaded)
-            .help("Test sound")
         }
 
         // Error message if any
@@ -187,40 +153,7 @@ struct MenuBarView: View {
         .keyboardShortcut("q", modifiers: .command)
     }
 
-    // MARK: - File Selection
-
-    private func selectSoundFile() {
-        let panel = NSOpenPanel()
-        panel.title = "Choose a Sound File"
-        panel.message = "Select an audio file to play when fn key is pressed"
-        panel.prompt = "Select"
-        panel.allowsMultipleSelection = false
-        panel.canChooseDirectories = false
-        panel.canChooseFiles = true
-
-        // Allow common audio formats
-        panel.allowedContentTypes = [
-            .audio,
-            .mp3,
-            .wav,
-            .aiff,
-            UTType(filenameExtension: "m4a") ?? .audio,
-            UTType(filenameExtension: "caf") ?? .audio,
-            UTType(filenameExtension: "aac") ?? .audio
-        ]
-
-        if panel.runModal() == .OK, let url = panel.url {
-            do {
-                // Load the sound
-                try soundPlayer.loadSound(from: url)
-
-                // Save bookmark for persistence
-                try settings.saveSoundBookmark(for: url)
-            } catch {
-                print("Failed to load sound: \(error)")
-            }
-        }
-    }
+    // MARK: - Sound Selection
 
     private func selectBundledSound(_ sound: BundledSound) {
         do {

@@ -1,4 +1,5 @@
 import Foundation
+import ServiceManagement
 
 /// Menu bar icon style options
 enum MenuBarIconStyle: String, CaseIterable {
@@ -60,6 +61,7 @@ final class SettingsManager: ObservableObject {
     @Published var launchAtLogin: Bool {
         didSet {
             defaults.set(launchAtLogin, forKey: Keys.launchAtLogin)
+            updateLaunchAtLogin(launchAtLogin)
         }
     }
 
@@ -143,14 +145,14 @@ final class SettingsManager: ObservableObject {
             self.menuBarIconStyle = .smallText
         }
 
-        // Random timer settings (default: disabled, 30-120 seconds)
+        // Random timer settings (default: disabled, 30-60 minutes)
         self.randomTimerEnabled = defaults.bool(forKey: Keys.randomTimerEnabled)
 
         let savedMin = defaults.double(forKey: Keys.randomTimerMinInterval)
-        self.randomTimerMinInterval = savedMin > 0 ? savedMin : 30.0
+        self.randomTimerMinInterval = savedMin >= 300 ? savedMin : 1800.0  // 30 minutes
 
         let savedMax = defaults.double(forKey: Keys.randomTimerMaxInterval)
-        self.randomTimerMaxInterval = savedMax > 0 ? savedMax : 120.0
+        self.randomTimerMaxInterval = savedMax >= 300 ? savedMax : 3600.0  // 60 minutes
 
         // Toasty popup (default: enabled)
         if defaults.object(forKey: Keys.toastyEnabled) == nil {
@@ -247,5 +249,34 @@ final class SettingsManager: ObservableObject {
         isEnabled = true
         launchAtLogin = false
         clearSoundBookmark()
+    }
+
+    // MARK: - Launch at Login
+
+    /// Update the system login item registration
+    private func updateLaunchAtLogin(_ enabled: Bool) {
+        if #available(macOS 13.0, *) {
+            do {
+                if enabled {
+                    try SMAppService.mainApp.register()
+                } else {
+                    try SMAppService.mainApp.unregister()
+                }
+            } catch {
+                print("Failed to \(enabled ? "register" : "unregister") login item: \(error)")
+            }
+        }
+    }
+
+    /// Sync the launchAtLogin setting with the actual system state
+    func syncLaunchAtLoginState() {
+        if #available(macOS 13.0, *) {
+            let systemStatus = SMAppService.mainApp.status
+            let isRegistered = systemStatus == .enabled
+            if launchAtLogin != isRegistered {
+                // Update our setting to match system state (user may have changed it in System Settings)
+                launchAtLogin = isRegistered
+            }
+        }
     }
 }

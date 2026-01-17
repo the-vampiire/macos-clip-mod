@@ -92,5 +92,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if settings.isEnabled && keyMonitor.hasPermission {
             keyMonitor.start()
         }
+
+        // Sync launch at login state with system (in case user changed it in System Settings)
+        settings.syncLaunchAtLoginState()
     }
 }
