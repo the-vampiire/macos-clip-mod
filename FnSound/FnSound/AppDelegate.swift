@@ -7,6 +7,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var keyMonitor: KeyMonitor?
     private var soundPlayer: SoundPlayer?
     private var settings: SettingsManager?
+    private var settingsWindowObserver: NSObjectProtocol?
 
     /// Configure the delegate with the app's state objects
     func configure(
@@ -21,6 +22,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         setupApp()
+        observeSettingsWindow()
     }
 
     /// Initialize the app's core functionality
@@ -95,5 +97,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         // Sync launch at login state with system (in case user changed it in System Settings)
         settings.syncLaunchAtLoginState()
+    }
+
+    /// Observe when the settings window becomes visible and bring it to front
+    /// This fixes the issue where settings window opens behind other windows in menu bar apps
+    private func observeSettingsWindow() {
+        settingsWindowObserver = NotificationCenter.default.addObserver(
+            forName: NSWindow.didBecomeKeyNotification,
+            object: nil,
+            queue: .main
+        ) { notification in
+            guard let window = notification.object as? NSWindow,
+                  window.identifier?.rawValue == "com_apple_SwiftUI_Settings_window" else { return }
+            NSApp.activate(ignoringOtherApps: true)
+            window.orderFrontRegardless()
+        }
     }
 }

@@ -1,5 +1,8 @@
 # Changelog
 
+## [1.0.7] - 2026-01-18
+- Fix settings window opening behind other windows in menu bar app mode
+
 ## [1.0.6] - 2026-01-17
 - Toasty popup now appears above all windows (including quake-style terminals)
 - Skip triggering when screen is locked or screensaver is active
