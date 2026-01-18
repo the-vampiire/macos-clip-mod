@@ -62,6 +62,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let toastyManager = ToastyManager.shared
         toastyManager.toastyEnabled = settings.toastyEnabled
         toastyManager.toastyScale = settings.toastyScale
+        toastyManager.toastyCorner = settings.toastyCorner
         toastyManager.toastyOffsetX = settings.toastyOffsetX
         toastyManager.toastyOffsetY = settings.toastyOffsetY
         toastyManager.onTrigger = { [weak soundPlayer] in

@@ -122,6 +122,20 @@ struct SettingsView: View {
 
                 if settings.toastyEnabled {
                     VStack(alignment: .leading, spacing: 12) {
+                        // Corner picker
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("Corner:")
+                            Picker("Corner", selection: $settings.toastyCorner) {
+                                ForEach(ScreenCorner.allCases, id: \.self) { corner in
+                                    Text(corner.displayName).tag(corner)
+                                }
+                            }
+                            .pickerStyle(.segmented)
+                            .onChange(of: settings.toastyCorner) { _, newValue in
+                                ToastyManager.shared.toastyCorner = newValue
+                            }
+                        }
+
                         // Scale slider
                         VStack(alignment: .leading, spacing: 4) {
                             HStack {
@@ -137,39 +151,48 @@ struct SettingsView: View {
                                 }
                         }
 
-                        // X offset slider
-                        VStack(alignment: .leading, spacing: 4) {
-                            HStack {
-                                Text("X offset (from right):")
-                                Spacer()
-                                Text("\(Int(settings.toastyOffsetX))px")
-                                    .monospacedDigit()
-                                    .foregroundColor(.secondary)
-                            }
-                            Slider(value: $settings.toastyOffsetX, in: -200...500, step: 10)
-                                .onChange(of: settings.toastyOffsetX) { _, newValue in
-                                    ToastyManager.shared.toastyOffsetX = newValue
+                        // Fine-tune offsets (collapsible)
+                        DisclosureGroup("Fine-tune position") {
+                            VStack(alignment: .leading, spacing: 8) {
+                                // X offset slider
+                                VStack(alignment: .leading, spacing: 4) {
+                                    HStack {
+                                        Text("X offset:")
+                                        Spacer()
+                                        Text("\(Int(settings.toastyOffsetX))px")
+                                            .monospacedDigit()
+                                            .foregroundColor(.secondary)
+                                    }
+                                    Slider(value: $settings.toastyOffsetX, in: -100...100, step: 5)
+                                        .onChange(of: settings.toastyOffsetX) { _, newValue in
+                                            ToastyManager.shared.toastyOffsetX = newValue
+                                        }
                                 }
-                        }
 
-                        // Y offset slider
-                        VStack(alignment: .leading, spacing: 4) {
-                            HStack {
-                                Text("Y offset (from bottom):")
-                                Spacer()
-                                Text("\(Int(settings.toastyOffsetY))px")
-                                    .monospacedDigit()
-                                    .foregroundColor(.secondary)
-                            }
-                            Slider(value: $settings.toastyOffsetY, in: -200...500, step: 10)
-                                .onChange(of: settings.toastyOffsetY) { _, newValue in
-                                    ToastyManager.shared.toastyOffsetY = newValue
+                                // Y offset slider
+                                VStack(alignment: .leading, spacing: 4) {
+                                    HStack {
+                                        Text("Y offset:")
+                                        Spacer()
+                                        Text("\(Int(settings.toastyOffsetY))px")
+                                            .monospacedDigit()
+                                            .foregroundColor(.secondary)
+                                    }
+                                    Slider(value: $settings.toastyOffsetY, in: -100...100, step: 5)
+                                        .onChange(of: settings.toastyOffsetY) { _, newValue in
+                                            ToastyManager.shared.toastyOffsetY = newValue
+                                        }
                                 }
-                        }
 
-                        Text("Adjust size and position. X: positive = further left. Y: positive = higher up.")
-                            .font(.caption2)
-                            .foregroundColor(.secondary)
+                                Button("Reset offsets") {
+                                    settings.resetToastyOffsets()
+                                    ToastyManager.shared.toastyOffsetX = 0.0
+                                    ToastyManager.shared.toastyOffsetY = 0.0
+                                }
+                                .font(.caption)
+                            }
+                            .padding(.top, 4)
+                        }
                     }
                 }
 
@@ -188,7 +211,7 @@ struct SettingsView: View {
             }
         }
         .formStyle(.grouped)
-        .frame(width: 450, height: 700)
+        .frame(width: 450, height: 750)
     }
 
     // MARK: - Trigger Delay Control

@@ -13,6 +13,7 @@ final class ToastyWindow: NSPanel, NSAnimationDelegate {
     private var currentAnimation: NSViewAnimation?
 
     // Store current values for hide animation
+    private var currentCorner: ScreenCorner = .bottomRight
     private var currentOffsetX: Double = 0
     private var currentOffsetY: Double = 0
     private var currentScaledSize: CGFloat = 300
@@ -62,9 +63,10 @@ final class ToastyWindow: NSPanel, NSAnimationDelegate {
     ///   - image: The image to display
     ///   - duration: How long to display before hiding (matches audio length)
     ///   - scale: Size multiplier (1.0 = 300px)
-    ///   - offsetX: Horizontal offset (positive = further left from right edge)
-    ///   - offsetY: Vertical offset (positive = higher up from bottom)
-    func showToasty(with image: NSImage?, duration: TimeInterval, scale: Double = 1.0, offsetX: Double = 0, offsetY: Double = 0) {
+    ///   - corner: Which corner of the screen to appear in
+    ///   - offsetX: Fine-tuning horizontal offset
+    ///   - offsetY: Fine-tuning vertical offset
+    func showToasty(with image: NSImage?, duration: TimeInterval, scale: Double = 1.0, corner: ScreenCorner = .bottomRight, offsetX: Double = 0, offsetY: Double = 0) {
         // Cancel any pending operations
         hideWorkItem?.cancel()
         currentAnimation?.stop()
@@ -84,24 +86,21 @@ final class ToastyWindow: NSPanel, NSAnimationDelegate {
         // Update imageView frame for new scale
         imageView.frame = NSRect(origin: .zero, size: NSSize(width: scaledSize, height: scaledSize))
 
-        // Use visibleFrame (excludes Dock and menu bar)
-        let visibleFrame = screen.visibleFrame
-
-        // Calculate positions for bottom-right corner
-        // macOS coordinate system: origin is bottom-left
-        let xPos = visibleFrame.maxX - scaledSize - CGFloat(offsetX)
-        let finalY = visibleFrame.minY + CGFloat(offsetY)
-        let startY = visibleFrame.minY - scaledSize  // Start below visible area
-
         // Store for hide animation
+        self.currentCorner = corner
         self.currentOffsetX = offsetX
         self.currentOffsetY = offsetY
         self.currentScaledSize = scaledSize
         self.displayDuration = duration
 
-        // Create start and end frames
-        let startFrame = NSRect(x: xPos, y: startY, width: scaledSize, height: scaledSize)
-        let finalFrame = NSRect(x: xPos, y: finalY, width: scaledSize, height: scaledSize)
+        // Calculate frames based on corner
+        let (startFrame, finalFrame) = calculateFrames(
+            screen: screen,
+            scaledSize: scaledSize,
+            corner: corner,
+            offsetX: offsetX,
+            offsetY: offsetY
+        )
 
         // Set initial position and show window
         self.setFrame(startFrame, display: true)
@@ -129,7 +128,7 @@ final class ToastyWindow: NSPanel, NSAnimationDelegate {
         DispatchQueue.main.asyncAfter(deadline: .now() + animationDuration + duration, execute: workItem)
     }
 
-    /// Hide the Toasty popup by sliding it back down
+    /// Hide the Toasty popup by sliding it back out
     private func hideToasty() {
         currentAnimation?.stop()
 
@@ -138,13 +137,14 @@ final class ToastyWindow: NSPanel, NSAnimationDelegate {
             return
         }
 
-        let visibleFrame = screen.visibleFrame
-        let xPos = visibleFrame.maxX - currentScaledSize - CGFloat(currentOffsetX)
-        let currentY = visibleFrame.minY + CGFloat(currentOffsetY)
-        let endY = visibleFrame.minY - currentScaledSize
-
-        let currentFrame = NSRect(x: xPos, y: currentY, width: currentScaledSize, height: currentScaledSize)
-        let endFrame = NSRect(x: xPos, y: endY, width: currentScaledSize, height: currentScaledSize)
+        // Calculate frames for hide animation (reverse of show)
+        let (endFrame, currentFrame) = calculateFrames(
+            screen: screen,
+            scaledSize: currentScaledSize,
+            corner: currentCorner,
+            offsetX: currentOffsetX,
+            offsetY: currentOffsetY
+        )
 
         // Use NSViewAnimation for reliable window frame animation
         let hideAnimation = NSViewAnimation(viewAnimations: [
@@ -162,6 +162,48 @@ final class ToastyWindow: NSPanel, NSAnimationDelegate {
         hideAnimation.start()
     }
 
+    /// Calculate start and final frames based on corner position
+    /// - Returns: Tuple of (startFrame, finalFrame) for show animation
+    private func calculateFrames(
+        screen: NSScreen,
+        scaledSize: CGFloat,
+        corner: ScreenCorner,
+        offsetX: Double,
+        offsetY: Double
+    ) -> (start: NSRect, final: NSRect) {
+        let visibleFrame = screen.visibleFrame
+        let margin: CGFloat = 20  // Margin from screen edge
+
+        // Calculate X position based on left/right
+        let xPos: CGFloat
+        switch corner {
+        case .bottomLeft, .topLeft:
+            xPos = visibleFrame.minX + margin + CGFloat(offsetX)
+        case .bottomRight, .topRight:
+            xPos = visibleFrame.maxX - scaledSize - margin + CGFloat(offsetX)
+        }
+
+        // Calculate Y positions based on top/bottom
+        let finalY: CGFloat
+        let startY: CGFloat
+
+        switch corner {
+        case .bottomLeft, .bottomRight:
+            // Slide up from below screen
+            finalY = visibleFrame.minY + margin + CGFloat(offsetY)
+            startY = visibleFrame.minY - scaledSize
+        case .topLeft, .topRight:
+            // Slide down from above screen
+            finalY = visibleFrame.maxY - scaledSize - margin + CGFloat(offsetY)
+            startY = visibleFrame.maxY
+        }
+
+        let startFrame = NSRect(x: xPos, y: startY, width: scaledSize, height: scaledSize)
+        let finalFrame = NSRect(x: xPos, y: finalY, width: scaledSize, height: scaledSize)
+
+        return (startFrame, finalFrame)
+    }
+
     // MARK: - NSAnimationDelegate
 
     func animationDidEnd(_ animation: NSAnimation) {
@@ -170,9 +212,13 @@ final class ToastyWindow: NSPanel, NSAnimationDelegate {
             return
         }
         // Check if this was a hide animation (window should be off-screen)
-        if let frame = (animation as? NSViewAnimation)?.viewAnimations.first?[NSViewAnimation.Key.endFrame] as? NSValue {
+        // For bottom corners, y < visible area; for top corners, y > visible area
+        if let frame = (animation as? NSViewAnimation)?.viewAnimations.first?[NSViewAnimation.Key.endFrame] as? NSValue,
+           let screen = NSScreen.main {
             let endFrame = frame.rectValue
-            if endFrame.origin.y < 0 {
+            let visibleFrame = screen.visibleFrame
+            // Window is off-screen if below visible area or above it
+            if endFrame.origin.y < visibleFrame.minY || endFrame.origin.y > visibleFrame.maxY {
                 self.orderOut(nil)
             }
         }

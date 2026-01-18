@@ -1,6 +1,23 @@
 import Foundation
 import ServiceManagement
 
+/// Screen corner for Toasty popup positioning
+enum ScreenCorner: String, CaseIterable {
+    case bottomRight = "bottomRight"
+    case bottomLeft = "bottomLeft"
+    case topRight = "topRight"
+    case topLeft = "topLeft"
+
+    var displayName: String {
+        switch self {
+        case .bottomRight: return "Bottom Right"
+        case .bottomLeft: return "Bottom Left"
+        case .topRight: return "Top Right"
+        case .topLeft: return "Top Left"
+        }
+    }
+}
+
 /// Menu bar icon style options
 enum MenuBarIconStyle: String, CaseIterable {
     case smallText = "smallText"      // Small "LIFN" text
@@ -37,6 +54,7 @@ final class SettingsManager: ObservableObject {
         static let randomTimerMaxInterval = "randomTimerMaxInterval"
         static let toastyEnabled = "toastyEnabled"
         static let toastyScale = "toastyScale"
+        static let toastyCorner = "toastyCorner"
         static let toastyOffsetX = "toastyOffsetX"
         static let toastyOffsetY = "toastyOffsetY"
     }
@@ -107,14 +125,21 @@ final class SettingsManager: ObservableObject {
         }
     }
 
-    /// Horizontal offset from right edge (positive = further left from edge)
+    /// Corner of the screen for Toasty popup
+    @Published var toastyCorner: ScreenCorner {
+        didSet {
+            defaults.set(toastyCorner.rawValue, forKey: Keys.toastyCorner)
+        }
+    }
+
+    /// Horizontal offset for fine-tuning position (range -100...100)
     @Published var toastyOffsetX: Double {
         didSet {
             defaults.set(toastyOffsetX, forKey: Keys.toastyOffsetX)
         }
     }
 
-    /// Vertical offset from bottom edge (positive = higher up from edge)
+    /// Vertical offset for fine-tuning position (range -100...100)
     @Published var toastyOffsetY: Double {
         didSet {
             defaults.set(toastyOffsetY, forKey: Keys.toastyOffsetY)
@@ -169,17 +194,17 @@ final class SettingsManager: ObservableObject {
             self.toastyScale = savedScale > 0 ? savedScale : 2.0
         }
 
-        // Toasty offsets (default: 0, -50 - slightly below corner for proper positioning)
-        if defaults.object(forKey: Keys.toastyOffsetX) == nil {
-            self.toastyOffsetX = 0.0
+        // Toasty corner (default: bottom right)
+        if let savedCorner = defaults.string(forKey: Keys.toastyCorner),
+           let corner = ScreenCorner(rawValue: savedCorner) {
+            self.toastyCorner = corner
         } else {
-            self.toastyOffsetX = defaults.double(forKey: Keys.toastyOffsetX)
+            self.toastyCorner = .bottomRight
         }
-        if defaults.object(forKey: Keys.toastyOffsetY) == nil {
-            self.toastyOffsetY = -50.0
-        } else {
-            self.toastyOffsetY = defaults.double(forKey: Keys.toastyOffsetY)
-        }
+
+        // Toasty offsets for fine-tuning (default: 0, 0 - auto-positioning handles base position)
+        self.toastyOffsetX = defaults.double(forKey: Keys.toastyOffsetX)
+        self.toastyOffsetY = defaults.double(forKey: Keys.toastyOffsetY)
     }
 
     // MARK: - Sound File Bookmark
@@ -249,6 +274,12 @@ final class SettingsManager: ObservableObject {
         isEnabled = true
         launchAtLogin = false
         clearSoundBookmark()
+    }
+
+    /// Reset Toasty position offsets to defaults
+    func resetToastyOffsets() {
+        toastyOffsetX = 0.0
+        toastyOffsetY = 0.0
     }
 
     // MARK: - Launch at Login

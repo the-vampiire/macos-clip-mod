@@ -26,11 +26,14 @@ final class ToastyManager: ObservableObject {
     /// Scale of the popup (1.0 = 300px base size, default 2.0 = 600px)
     var toastyScale: Double = 2.0
 
-    /// Horizontal offset from right edge
+    /// Corner of the screen for popup
+    var toastyCorner: ScreenCorner = .bottomRight
+
+    /// Horizontal offset for fine-tuning
     var toastyOffsetX: Double = 0.0
 
-    /// Vertical offset from bottom edge (negative = below screen edge for slide-up effect)
-    var toastyOffsetY: Double = -50.0
+    /// Vertical offset for fine-tuning
+    var toastyOffsetY: Double = 0.0
 
     /// Fallback duration if audio duration unknown
     private let fallbackDuration: TimeInterval = 1.5
@@ -144,6 +147,7 @@ final class ToastyManager: ObservableObject {
                 with: self.toastyImage,
                 duration: displayDuration,
                 scale: self.toastyScale,
+                corner: self.toastyCorner,
                 offsetX: self.toastyOffsetX,
                 offsetY: self.toastyOffsetY
             )
