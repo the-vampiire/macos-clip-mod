@@ -6,6 +6,24 @@
     <description>Most recent updates to LIFN</description>
     <language>en</language>
     <item>
+      <title>Version 1.0.8</title>
+      <pubDate>Sun, 18 Jan 2026 21:49:27 +0000</pubDate>
+      <description><![CDATA[<ul>
+  <li>Add Toasty corner selection (Bottom Right, Bottom Left, Top Right, Top Left)</li>
+  <li>Auto-positioning: corners now work correctly with any scale</li>
+  <li>Fix settings window reliably opening in foreground</li>
+</ul>]]></description>
+      <enclosure
+        url="https://github.com/the-vampiire/macos-clip-mod/releases/download/v1.0.8/LIFN-1.0.8.dmg"
+        sparkle:version="27"
+        sparkle:shortVersionString="1.0.8"
+        length="5470056"
+        type="application/octet-stream"
+        sparkle:edSignature="wijKXpPnL1LNJBOYHrvFHiM7Mc1199Ni449yZX2SDfPa0Hf+9Gx78zNgO6w4h9zWobKKO2/lVVM3zbIfje/3AA=="
+      />
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+    </item>
+    <item>
       <title>Version 1.0.6</title>
       <pubDate>Sun, 18 Jan 2026 19:10:52 +0000</pubDate>
       <description><![CDATA[<ul>
