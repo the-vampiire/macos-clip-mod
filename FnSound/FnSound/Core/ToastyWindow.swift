@@ -171,16 +171,17 @@ final class ToastyWindow: NSPanel, NSAnimationDelegate {
         offsetX: Double,
         offsetY: Double
     ) -> (start: NSRect, final: NSRect) {
-        let visibleFrame = screen.visibleFrame
-        let margin: CGFloat = 20  // Margin from screen edge
+        let screenFrame = screen.frame        // Full screen including Dock/menu bar areas
+        let visibleFrame = screen.visibleFrame // Excludes Dock and menu bar
 
         // Calculate X position based on left/right
+        // Use full screen width, offset: positive = towards center
         let xPos: CGFloat
         switch corner {
         case .bottomLeft, .topLeft:
-            xPos = visibleFrame.minX + margin + CGFloat(offsetX)
+            xPos = screenFrame.minX + CGFloat(offsetX)
         case .bottomRight, .topRight:
-            xPos = visibleFrame.maxX - scaledSize - margin + CGFloat(offsetX)
+            xPos = screenFrame.maxX - scaledSize - CGFloat(offsetX)
         }
 
         // Calculate Y positions based on top/bottom
@@ -189,13 +190,13 @@ final class ToastyWindow: NSPanel, NSAnimationDelegate {
 
         switch corner {
         case .bottomLeft, .bottomRight:
-            // Slide up from below screen
-            finalY = visibleFrame.minY + margin + CGFloat(offsetY)
-            startY = visibleFrame.minY - scaledSize
+            // Slide up from below screen - flush with actual screen bottom (ignores Dock)
+            finalY = screenFrame.minY + CGFloat(offsetY)
+            startY = screenFrame.minY - scaledSize - 10
         case .topLeft, .topRight:
-            // Slide down from above screen
-            finalY = visibleFrame.maxY - scaledSize - margin + CGFloat(offsetY)
-            startY = visibleFrame.maxY
+            // Slide down from above screen - flush with bottom of menu bar (respects menu bar)
+            finalY = visibleFrame.maxY - scaledSize - CGFloat(offsetY)
+            startY = screenFrame.maxY + 10
         }
 
         let startFrame = NSRect(x: xPos, y: startY, width: scaledSize, height: scaledSize)
@@ -212,13 +213,16 @@ final class ToastyWindow: NSPanel, NSAnimationDelegate {
             return
         }
         // Check if this was a hide animation (window should be off-screen)
-        // For bottom corners, y < visible area; for top corners, y > visible area
         if let frame = (animation as? NSViewAnimation)?.viewAnimations.first?[NSViewAnimation.Key.endFrame] as? NSValue,
            let screen = NSScreen.main {
             let endFrame = frame.rectValue
-            let visibleFrame = screen.visibleFrame
-            // Window is off-screen if below visible area or above it
-            if endFrame.origin.y < visibleFrame.minY || endFrame.origin.y > visibleFrame.maxY {
+            let screenFrame = screen.frame
+            // Window is off-screen if:
+            // - Top edge is at or below screen bottom (endFrame.maxY <= screenFrame.minY)
+            // - Bottom edge is at or above screen top (endFrame.origin.y >= screenFrame.maxY)
+            let isOffScreenBottom = endFrame.maxY <= screenFrame.minY
+            let isOffScreenTop = endFrame.origin.y >= screenFrame.maxY
+            if isOffScreenBottom || isOffScreenTop {
                 self.orderOut(nil)
             }
         }

@@ -137,18 +137,6 @@ struct MenuBarView: View {
             Text("Settings...")
         }
         .keyboardShortcut(",", modifiers: .command)
-        .simultaneousGesture(TapGesture().onEnded {
-            // Immediate activation attempt
-            NSApp.activate(ignoringOtherApps: true)
-            // Delayed activation to catch the window after SwiftUI creates it
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                NSApp.activate(ignoringOtherApps: true)
-                for window in NSApp.windows where window.identifier?.rawValue == "com_apple_SwiftUI_Settings_window" {
-                    window.makeKeyAndOrderFront(nil)
-                    window.orderFrontRegardless()
-                }
-            }
-        })
 
         Button("Check for Updates...") {
             UpdaterManager.shared.checkForUpdates()

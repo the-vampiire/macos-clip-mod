@@ -48,6 +48,10 @@ struct FnSoundApp: App {
                 .environmentObject(keyMonitor)
                 .environmentObject(soundPlayer)
                 .environmentObject(settings)
+                .onDisappear {
+                    // Restore accessory mode (hide dock icon) when settings closes
+                    NSApp.setActivationPolicy(.accessory)
+                }
         }
     }
 

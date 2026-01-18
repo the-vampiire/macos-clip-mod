@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.0.8] - 2026-01-18
+- Add Toasty corner selection (Bottom Right, Bottom Left, Top Right, Top Left)
+- Auto-positioning: corners now work correctly with any scale
+- Fix settings window reliably opening in foreground
+
 ## [1.0.7] - 2026-01-18
 - Fix settings window opening behind other windows in menu bar app mode
 
