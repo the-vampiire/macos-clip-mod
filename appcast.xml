@@ -6,6 +6,26 @@
     <description>Most recent updates to LIFN</description>
     <language>en</language>
     <item>
+      <title>Version 1.0.5</title>
+      <pubDate>Sun, 18 Jan 2026 00:01:06 +0000</pubDate>
+      <description><![CDATA[<ul>
+  <li>Add optional "Launch at Login" setting</li>
+  <li>Simplify menu bar: show only sound picker</li>
+  <li>Reorganize Settings: Permissions section now includes Input Monitoring and system fn key instructions</li>
+  <li>Change random timer intervals to minutes (5m increments, default 30-60m)</li>
+  <li>Add "Check for Updates" button in Settings > About</li>
+</ul>]]></description>
+      <enclosure
+        url="https://github.com/the-vampiire/macos-clip-mod/releases/download/v1.0.5/LIFN-1.0.5.dmg"
+        sparkle:version="24"
+        sparkle:shortVersionString="1.0.5"
+        length="5448771"
+        type="application/octet-stream"
+        sparkle:edSignature="yK+gJR5cmjEj0TrgHLCgC2/2UTMfSviB4Y8zFclHWLVBd8UuVXagNpsAvKkI10HF25mbvpEe3ZZWSS+7pTfqAw=="
+      />
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+    </item>
+    <item>
       <title>Version 1.0.4</title>
       <pubDate>Fri, 16 Jan 2026 09:06:34 +0000</pubDate>
       <description><![CDATA[<ul>
