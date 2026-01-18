@@ -13,6 +13,10 @@ final class ToastyManager: ObservableObject {
     private var randomTimer: DispatchSourceTimer?
     private var toastyImage: NSImage?
 
+    /// Track screen lock and screensaver state
+    private var isScreenLocked = false
+    private var isScreensaverActive = false
+
     /// Callback to play the sound - returns the audio duration
     var onTrigger: (() -> TimeInterval)?
 
@@ -38,6 +42,63 @@ final class ToastyManager: ObservableObject {
     private init() {
         // Load toasty image from bundle if available, otherwise use app icon
         loadToastyImage()
+        // Start observing screen lock and screensaver state
+        observeScreenState()
+    }
+
+    // MARK: - Screen State Observation
+
+    private func observeScreenState() {
+        let dnc = DistributedNotificationCenter.default()
+
+        // Screen lock notifications
+        dnc.addObserver(
+            self,
+            selector: #selector(screenDidLock),
+            name: NSNotification.Name("com.apple.screenIsLocked"),
+            object: nil
+        )
+        dnc.addObserver(
+            self,
+            selector: #selector(screenDidUnlock),
+            name: NSNotification.Name("com.apple.screenIsUnlocked"),
+            object: nil
+        )
+
+        // Screensaver notifications
+        dnc.addObserver(
+            self,
+            selector: #selector(screensaverDidStart),
+            name: NSNotification.Name("com.apple.screensaver.didstart"),
+            object: nil
+        )
+        dnc.addObserver(
+            self,
+            selector: #selector(screensaverDidStop),
+            name: NSNotification.Name("com.apple.screensaver.didstop"),
+            object: nil
+        )
+    }
+
+    @objc private func screenDidLock() {
+        isScreenLocked = true
+    }
+
+    @objc private func screenDidUnlock() {
+        isScreenLocked = false
+    }
+
+    @objc private func screensaverDidStart() {
+        isScreensaverActive = true
+    }
+
+    @objc private func screensaverDidStop() {
+        isScreensaverActive = false
+    }
+
+    /// Check if screen is currently active (not locked, no screensaver)
+    private var isScreenActive: Bool {
+        return !isScreenLocked && !isScreensaverActive
     }
 
     private func loadToastyImage() {
@@ -57,7 +118,11 @@ final class ToastyManager: ObservableObject {
     // MARK: - Toasty Popup
 
     /// Trigger the Toasty effect - show popup and play sound
+    /// Skips triggering if screen is locked or screensaver is active
     func trigger() {
+        // Don't trigger when screen is locked or screensaver is active
+        guard isScreenActive else { return }
+
         // Play sound and get duration
         let duration = onTrigger?() ?? fallbackDuration
 

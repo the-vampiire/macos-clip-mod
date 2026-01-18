@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.0.6] - 2026-01-17
+- Toasty popup now appears above all windows (including quake-style terminals)
+- Skip triggering when screen is locked or screensaver is active
+
 ## [1.0.5] - 2026-01-17
 - Add optional "Launch at Login" setting
 - Simplify menu bar: show only sound picker

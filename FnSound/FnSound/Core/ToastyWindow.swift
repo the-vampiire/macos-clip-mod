@@ -38,8 +38,8 @@ final class ToastyWindow: NSPanel, NSAnimationDelegate {
             defer: false
         )
 
-        // Configure as non-intrusive floating panel
-        self.level = .floating
+        // Configure as always-on-top panel (above quake-style terminals, etc.)
+        self.level = NSWindow.Level(rawValue: Int(CGShieldingWindowLevel()) + 1)
         self.isOpaque = false
         self.backgroundColor = .clear
         self.hasShadow = true
