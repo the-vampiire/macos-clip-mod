@@ -55,9 +55,11 @@ final class KeyMonitor: ObservableObject {
 
         hasPermission = true
 
-        // Event mask for flagsChanged (modifier keys) and keyDown events
+        // Event mask for flagsChanged (modifier keys), keyDown, and system-defined events
+        // System-defined events include media keys (volume, brightness, etc.)
         let eventMask: CGEventMask = (1 << CGEventType.flagsChanged.rawValue) |
-                                      (1 << CGEventType.keyDown.rawValue)
+                                      (1 << CGEventType.keyDown.rawValue) |
+                                      (1 << 14)  // NX_SYSDEFINED / NSEventType.systemDefined
 
         // Pass self as userInfo to access from C callback
         let userInfo = Unmanaged.passRetained(self).toOpaque()
@@ -139,7 +141,12 @@ final class KeyMonitor: ObservableObject {
             if eventType == .flagsChanged {
                 monitor.handleFlagsChanged(flags)
             } else if eventType == .keyDown {
-                monitor.handleKeyDown()
+                // Regular key pressed - cancel fn trigger
+                monitor.handleOtherKeyActivity()
+            } else if eventType.rawValue == 14 {
+                // System-defined event (media keys like volume, brightness)
+                // Cancel fn trigger when these are used
+                monitor.handleOtherKeyActivity()
             }
         }
 
@@ -170,10 +177,10 @@ final class KeyMonitor: ObservableObject {
         }
     }
 
-    /// Handle regular key presses (cancels fn-alone trigger)
-    private func handleKeyDown() {
-        // Any key pressed while fn is down means fn is being used as a modifier
-        // Cancel the trigger
+    /// Handle any key/system activity while fn is held (cancels fn-alone trigger)
+    private func handleOtherKeyActivity() {
+        // Any key pressed or system event (volume, brightness, etc.) while fn is down
+        // means fn is being used as a modifier - cancel the trigger
         if fnPressedTime != nil {
             shouldTriggerOnRelease = false
             cancelTriggerTimer()

@@ -1,5 +1,8 @@
 # Changelog
 
+## [1.0.9] - 2026-01-19
+- Fix fn+function key combos (volume, brightness) incorrectly triggering sound
+
 ## [1.0.8] - 2026-01-18
 - Add Toasty corner selection (Bottom Right, Bottom Left, Top Right, Top Left)
 - Auto-positioning: corners now work correctly with any scale
