@@ -6,6 +6,22 @@
     <description>Most recent updates to LIFN</description>
     <language>en</language>
     <item>
+      <title>Version 1.0.9</title>
+      <pubDate>Tue, 20 Jan 2026 06:14:20 +0000</pubDate>
+      <description><![CDATA[<ul>
+  <li>Fix fn+function key combos (volume, brightness) incorrectly triggering sound</li>
+</ul>]]></description>
+      <enclosure
+        url="https://github.com/the-vampiire/macos-clip-mod/releases/download/v1.0.9/LIFN-1.0.9.dmg"
+        sparkle:version="31"
+        sparkle:shortVersionString="1.0.9"
+        length="5469717"
+        type="application/octet-stream"
+        sparkle:edSignature="rR0xedVfXTpAJHMpv/ULNATc4nDFn6xrBHOacCDC0azCReK2jD3y/cMFbazyaekbrM6IIeMwCtOHhcb+Ra07Cg=="
+      />
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+    </item>
+    <item>
       <title>Version 1.0.8</title>
       <pubDate>Mon, 19 Jan 2026 02:36:42 +0000</pubDate>
       <description><![CDATA[<ul>
